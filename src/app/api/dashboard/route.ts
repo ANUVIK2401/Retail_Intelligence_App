@@ -1,0 +1,62 @@
+import { NextResponse } from "next/server";
+import { MockMailConnector } from "@/core/connectors/mock";
+import { RISK_ORDER, type RiskLevel } from "@/core/contracts";
+import { evaluateDeterministicRisk } from "@/core/risk/rules";
+import { actorFromRequest } from "@/core/session";
+import { getAssessment, listApprovals, listAudit } from "@/core/store";
+import { INSIGHTS } from "@/data/knowledge";
+import { personById } from "@/data/org";
+
+const mail = new MockMailConnector();
+
+/**
+ * Aggregated view. Reads cached assessments and stored state; it does not
+ * re-send mailbox content to a model on every page load.
+ */
+export async function GET(req: Request) {
+  const actor = actorFromRequest(req);
+  const messages = await mail.listMessages("p_ceo");
+
+  const scored = messages.map((m) => {
+    const cached = getAssessment(m.id);
+    const det = evaluateDeterministicRisk({
+      subject: m.subject,
+      body: m.body,
+      senderIsExternal: m.external,
+    });
+    const level: RiskLevel = cached?.risk.level ?? det.floor;
+    return {
+      id: m.id,
+      subject: m.subject,
+      from: personById(m.fromId)?.name ?? "Unknown",
+      receivedAt: m.receivedAt,
+      level,
+      topic: cached?.risk.topic ?? det.topic,
+      assessed: Boolean(cached),
+      injectionSuspected: det.injectionSuspected,
+    };
+  });
+
+  const approvals = listApprovals();
+
+  return NextResponse.json({
+    actor: { id: actor.id, name: actor.name, title: actor.title, roles: actor.roles },
+    needsAttention: scored
+      .filter((s) => RISK_ORDER[s.level] >= RISK_ORDER.high)
+      .sort((a, b) => RISK_ORDER[b.level] - RISK_ORDER[a.level]),
+    routine: scored.filter((s) => RISK_ORDER[s.level] <= RISK_ORDER.medium),
+    pendingApprovals: approvals.filter(
+      (a) => a.status === "awaiting_approval" || a.status === "proposed",
+    ),
+    completedApprovals: approvals.filter(
+      (a) => a.status === "completed" || a.status === "approved" || a.status === "rejected",
+    ).length,
+    insights: INSIGHTS.slice(0, 2),
+    recentAudit: listAudit(5),
+    counts: {
+      total: scored.length,
+      unassessed: scored.filter((s) => !s.assessed).length,
+      high: scored.filter((s) => RISK_ORDER[s.level] >= RISK_ORDER.high).length,
+    },
+  });
+}

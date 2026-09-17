@@ -1,0 +1,28 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - paragraph [ref=e5]: Northline Retail Group
+        - paragraph [ref=e6]: Executive Command Center
+      - navigation [ref=e7]:
+        - link "Home" [ref=e8] [cursor=pointer]:
+          - /url: /
+        - link "Inbox" [ref=e9] [cursor=pointer]:
+          - /url: /inbox
+        - link "Schedule" [ref=e10] [cursor=pointer]:
+          - /url: /schedule
+        - link "Approvals" [ref=e11] [cursor=pointer]:
+          - /url: /approvals
+        - link "Insights" [ref=e12] [cursor=pointer]:
+          - /url: /insights
+        - link "Workspace" [ref=e13] [cursor=pointer]:
+          - /url: /workspace
+        - link "Publish" [ref=e14] [cursor=pointer]:
+          - /url: /publish
+        - link "Controls" [ref=e15] [cursor=pointer]:
+          - /url: /controls
+        - link "Audit history" [ref=e16] [cursor=pointer]:
+          - /url: /audit
+    - main [ref=e18]:
+      - paragraph [ref=e19]: Loading…
+  - alert [ref=e20]

@@ -1,0 +1,13 @@
+[     199ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/favicon.ico:0
+[  347334ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3000/api/publications:0
+[  347349ms] TypeError: Cannot read properties of undefined (reading 'map')
+    at l (http://127.0.0.1:3000/_next/static/chunks/app/publish/page-4792883b1687213b.js:17:1788)
+    at ax (http://127.0.0.1:3000/_next/static/chunks/4bd1b696-92152b0f5947070d.js:1:53771)
+    at o4 (http://127.0.0.1:3000/_next/static/chunks/4bd1b696-92152b0f5947070d.js:1:74243)
+    at ih (http://127.0.0.1:3000/_next/static/chunks/4bd1b696-92152b0f5947070d.js:1:85932)
+    at sy (http://127.0.0.1:3000/_next/static/chunks/4bd1b696-92152b0f5947070d.js:1:129316)
+    at http://127.0.0.1:3000/_next/static/chunks/4bd1b696-92152b0f5947070d.js:1:129161
+    at sv (http://127.0.0.1:3000/_next/static/chunks/4bd1b696-92152b0f5947070d.js:1:129169)
+    at so (http://127.0.0.1:3000/_next/static/chunks/4bd1b696-92152b0f5947070d.js:1:125083)
+    at sG (http://127.0.0.1:3000/_next/static/chunks/4bd1b696-92152b0f5947070d.js:1:150883)
+    at MessagePort.w (http://127.0.0.1:3000/_next/static/chunks/794-fa85041d1eeb8167.js:1:51504)
