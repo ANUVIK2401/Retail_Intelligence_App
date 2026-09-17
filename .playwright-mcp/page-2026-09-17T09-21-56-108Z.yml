@@ -1,0 +1,87 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - paragraph [ref=e5]: Northline Retail Group
+        - paragraph [ref=e6]: Executive Command Center
+      - navigation [ref=e7]:
+        - link "Home" [ref=e8] [cursor=pointer]:
+          - /url: /
+        - link "Inbox" [ref=e9] [cursor=pointer]:
+          - /url: /inbox
+        - link "Schedule" [ref=e10] [cursor=pointer]:
+          - /url: /schedule
+        - link "Approvals" [ref=e11] [cursor=pointer]:
+          - /url: /approvals
+        - link "Insights" [ref=e12] [cursor=pointer]:
+          - /url: /insights
+        - link "Workspace" [ref=e13] [cursor=pointer]:
+          - /url: /workspace
+        - link "Publish" [ref=e14] [cursor=pointer]:
+          - /url: /publish
+        - link "Controls" [ref=e15] [cursor=pointer]:
+          - /url: /controls
+        - link "Audit history" [ref=e16] [cursor=pointer]:
+          - /url: /audit
+    - main [ref=e18]:
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - heading "Publish" [level=1] [ref=e21]
+          - paragraph [ref=e22]: Draft, check, review, approve, export. The prototype never posts to an external platform.
+        - generic [ref=e23]:
+          - heading "Draft" [level=2] [ref=e25]
+          - generic [ref=e26]:
+            - button "Denim circularity launch" [ref=e27] [cursor=pointer]
+            - 'button "Adversarial: unreleased figure" [ref=e28] [cursor=pointer]'
+            - 'button "Adversarial: draft argues with the checker" [ref=e29] [cursor=pointer]'
+            - 'button "Adversarial: material non-public information" [ref=e30] [cursor=pointer]'
+          - generic [ref=e31]: Draft text
+          - textbox "Draft text" [ref=e32]: "We started collecting old denim in 2023. In the first year we threw a fifth of it away. Elastane blends jammed the separation line and we had no answer for them, so roughly 20% of what customers handed back went to landfill. We did not announce the program that year, because there was nothing worth announcing. This week we are opening take-back at every store. The blend problem is solved, the line runs at 94% recovery, and the pairs come back as new fabric rather than insulation. If you run an operation like this: publish the recovery rate, not the collection number. The collection number is marketing. The recovery rate is the business."
+          - button "Re-run checks" [ref=e33] [cursor=pointer]
+        - generic [ref=e34]:
+          - heading "Pre-publication checks" [level=2] [ref=e36]
+          - list [ref=e37]:
+            - listitem [ref=e38]:
+              - generic [ref=e39]: Pass
+              - generic [ref=e40]:
+                - paragraph [ref=e41]: Confidentiality scan
+                - paragraph [ref=e42]: No restricted topics, unreleased figures, supplier names, or store-level data.
+            - listitem [ref=e43]:
+              - generic [ref=e44]: Review
+              - generic [ref=e45]:
+                - paragraph [ref=e46]: Regulated claims
+                - paragraph [ref=e47]: "Substantiation required before publication: 94% recovery (environmental performance percentage); 20% (numeric performance claim)."
+            - listitem [ref=e48]:
+              - generic [ref=e49]: Pass
+              - generic [ref=e50]:
+                - paragraph [ref=e51]: Brand voice
+                - paragraph [ref=e52]: First-person executive register, consistent with prior posts.
+            - listitem [ref=e53]:
+              - generic [ref=e54]: Pass
+              - generic [ref=e55]:
+                - paragraph [ref=e56]: Material non-public information
+                - paragraph [ref=e57]: No transaction, guidance, or earnings content detected.
+          - paragraph [ref=e58]: Check version 2026-09-16.c1
+        - generic [ref=e59]:
+          - heading "Review chain" [level=2] [ref=e61]
+          - generic [ref=e62]: require approval
+          - paragraph [ref=e63]: The chain below is derived from which checks failed, not chosen by a model. Each added reviewer names the check that put them there.
+          - list [ref=e64]:
+            - listitem [ref=e65]:
+              - generic [ref=e66]: "1"
+              - generic [ref=e67]: Communications review
+            - listitem [ref=e68]:
+              - generic [ref=e69]: "2"
+              - generic [ref=e70]:
+                - text: Legal review
+                - generic [ref=e71]: added because the regulated claims check failed
+            - listitem [ref=e72]:
+              - generic [ref=e73]: "3"
+              - generic [ref=e74]: Executive approval
+          - generic [ref=e75]:
+            - button "Send for review" [ref=e76] [cursor=pointer]
+            - button "Export as unapproved draft" [ref=e77] [cursor=pointer]
+        - generic [ref=e78]:
+          - heading "Prototype boundary" [level=2] [ref=e80]
+          - paragraph [ref=e81]: Direct posting to LinkedIn, Substack, or Instagram is out of scope until API eligibility, ownership of the corporate accounts, and the review policy are confirmed with the client. There is no publish function in the code — not a disabled one — so enabling posting requires writing new code that a reviewer would see.
+  - alert [ref=e82]

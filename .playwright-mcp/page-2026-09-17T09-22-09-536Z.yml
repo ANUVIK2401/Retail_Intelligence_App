@@ -1,0 +1,58 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - paragraph [ref=e5]: Northline Retail Group
+        - paragraph [ref=e6]: Executive Command Center
+      - navigation [ref=e7]:
+        - link "Home" [ref=e8] [cursor=pointer]:
+          - /url: /
+        - link "Inbox" [ref=e9] [cursor=pointer]:
+          - /url: /inbox
+        - link "Schedule" [ref=e10] [cursor=pointer]:
+          - /url: /schedule
+        - link "Approvals" [ref=e11] [cursor=pointer]:
+          - /url: /approvals
+        - link "Insights" [ref=e12] [cursor=pointer]:
+          - /url: /insights
+        - link "Workspace" [ref=e13] [cursor=pointer]:
+          - /url: /workspace
+        - link "Publish" [ref=e14] [cursor=pointer]:
+          - /url: /publish
+        - link "Controls" [ref=e15] [cursor=pointer]:
+          - /url: /controls
+        - link "Audit history" [ref=e16] [cursor=pointer]:
+          - /url: /audit
+      - generic [ref=e83]:
+        - text: Acting as
+        - combobox [ref=e84]:
+          - option "Maya Hollis — Chief Executive Officer" [selected]
+          - option "Grace Whitfield — Executive Assistant to the CEO"
+          - option "Marcus Field — General Counsel"
+          - option "Priya Raman — Chief Financial Officer"
+          - option "Dana Okonkwo — Chief Digital and Information Officer"
+          - option "Lena Marsh — Internal Audit Lead"
+        - paragraph [ref=e85]: Stands in for Microsoft Entra sign-in. Switching identity changes what the policy engine permits.
+    - main [ref=e18]:
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - heading "Publish" [level=1] [ref=e21]
+          - paragraph [ref=e22]: Draft, check, review, approve, export. The prototype never posts to an external platform.
+        - generic [ref=e23]:
+          - heading "Draft" [level=2] [ref=e25]
+          - generic [ref=e26]:
+            - button "Denim circularity launch" [ref=e27] [cursor=pointer]
+            - 'button "Adversarial: unreleased figure" [ref=e28] [cursor=pointer]'
+            - 'button "Adversarial: draft argues with the checker" [ref=e29] [cursor=pointer]'
+            - 'button "Adversarial: material non-public information" [ref=e30] [cursor=pointer]'
+          - generic [ref=e31]: Draft text
+          - textbox "Draft text" [ref=e32]: short
+          - button "Re-run checks" [ref=e33] [cursor=pointer]
+        - generic [ref=e86]:
+          - heading "Checks did not run" [level=2] [ref=e88]
+          - paragraph [ref=e89]: Provide a draft of at least twenty characters.
+          - paragraph [ref=e90]: Your draft is unchanged. Fix the issue above and run the checks again.
+        - generic [ref=e78]:
+          - heading "Prototype boundary" [level=2] [ref=e80]
+          - paragraph [ref=e81]: Direct posting to LinkedIn, Substack, or Instagram is out of scope until API eligibility, ownership of the corporate accounts, and the review policy are confirmed with the client. There is no publish function in the code — not a disabled one — so enabling posting requires writing new code that a reviewer would see.
+  - alert [ref=e82]

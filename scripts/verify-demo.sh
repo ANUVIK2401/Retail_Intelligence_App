@@ -84,7 +84,15 @@ echo "== Authorization on approvals =="
 Z=$(curl -s -X POST "$B/api/emails/e_publish/assess" -H "$(as p_ceo)")
 ZAP=$(python3 -c "import sys,json;print(json.load(sys.stdin)['approval']['id'])" <<<"$Z")
 W=$(curl -s -X POST "$B/api/approvals/$ZAP/decide" -H 'content-type: application/json' -H "$(as p_auditor)" -d '{"outcome":"approved"}')
-ck "auditor cannot approve"    'cannot clear it'              "$W"
+ck "auditor cannot approve"    'holds no delegation'          "$W"
+
+XP=$(curl -s -X POST "$B/api/publications" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"title":"Denim launch","channel":"linkedin","body":"We started collecting old denim in 2023 and in the first year we threw a fifth of it away.","requestApproval":true}')
+XAP=$(python3 -c "import sys,json;print(json.load(sys.stdin).get('approval',{}).get('id',''))" <<<"$XP")
+curl -s -X POST "$B/api/approvals/$XAP/decide" -H 'content-type: application/json' -H "$(as p_cmo)" -d '{"outcome":"approved"}' >/dev/null
+XG=$(curl -s -w '\n%{http_code}' -X POST "$B/api/approvals/$XAP/decide" -H 'content-type: application/json' -H "$(as p_gc)" -d '{"outcome":"approved"}')
+ck "one executive cannot clear another's step" '403'               "$XG"
+ck "the refusal names the owner"               "Maya Hollis"       "$XG"
+ck "the owner can clear their own step"        '"status":"completed"' "$(curl -s -X POST "$B/api/approvals/$XAP/decide" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"outcome":"approved"}')"
 
 echo "== Invariant rules cannot be disabled =="
 V=$(curl -s -X POST "$B/api/policies" -H 'content-type: application/json' -H "$(as p_cdio)" -d '{"ruleId":"P-NO-AUTOSEND","enabled":false}')

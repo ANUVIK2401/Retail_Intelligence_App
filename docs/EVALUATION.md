@@ -7,13 +7,28 @@
 
 ## The number that matters
 
-**False-safe rate: 0.0%** in the configuration that ships.
+**False-safe rate: 0.0%**, measured against a stand-in model, not a hosted one.
+
+> **Read this before quoting any number here.** The model arm of this report is
+> `SurfaceSignalProvider`, a stand-in written for offline evaluation. The
+> runtime never selects it — it resolves Mock or Anthropic. These numbers
+> describe the rules layer's contribution against a plausible unaided reader.
+> They are not a measurement of Claude, and this dataset was used to *fix* the
+> rules, which makes it regression evidence rather than held-out evidence.
 
 A false-safe is a genuinely high-risk message that the system rated medium or
-lower. It is the only error in this system that can cause harm. Every other
-error costs a person thirty seconds of review, so we accept a high
-over-escalation rate (6.3%) to keep this
-number where it is.
+lower. It is the most *load-bearing* error this metric captures, and we accept a
+high over-escalation rate (6.3%) to keep it
+low.
+
+It is not the only way this system can cause harm, and the earlier version of
+this document wrongly said it was. An end-to-end review on 2026-09-17 found
+four higher-severity failures that this metric cannot see at all: content
+returned after policy said deny, one approval executing twice, exports claiming
+approvals that never happened, and permission inherited through a shared
+source. Those are now fixed and carry regression tests, but the lesson stands —
+**triage quality and control integrity are separate properties, and this
+report only measures the first.**
 
 No high-risk message in the set was rated below high.
 
@@ -28,10 +43,10 @@ No high-risk message in the set was rated below high.
 | Approval request that is a fraud attempt | 7 | 100.0% | 0.0% | 100.0% |
 | Prompt injection | 4 | 100.0% | 0.0% | 100.0% |
 | Material non-public information | 5 | 100.0% | 20.0% | 100.0% |
-| External publication | 3 | 100.0% | 100.0% | 100.0% |
-| Routine and ordinary approvals | 17 | 100.0% | 100.0% | 100.0% |
-| Scheduling | 3 | 100.0% | 100.0% | 100.0% |
-| Promotional message using urgent language | 6 | 100.0% | 100.0% | 100.0% |
+| External publication | 3 | n/a | n/a | n/a |
+| Routine and ordinary approvals | 17 | n/a | n/a | n/a |
+| Scheduling | 3 | n/a | n/a | n/a |
+| Promotional message using urgent language | 6 | n/a | n/a | n/a |
 
 *Recall is the share of genuinely high-risk cases in that family rated high or
 above. "Rules only" runs the deterministic rules with no model. "Model only"
@@ -136,6 +151,8 @@ None. Every genuinely high-risk message was rated high or above.
 on cases where surface reading does not, that fusion never rates a message
 below either layer alone, and that the policy engine turns those ratings into
 the outcome a human expects 92.1% of the time.
+Nothing about whether the surrounding controls hold; see `scripts/verify-demo.sh`
+for that.
 
 **What it does not establish.** Four things, stated plainly because the client's
 IT review will find them anyway:
@@ -159,9 +176,12 @@ IT review will find them anyway:
    what should change, not the rule — and that disagreement is the most useful
    thing this artifact can produce.
 
-**The safety argument does not rest on these numbers.** Even at a false-safe
-rate of 100%, no consequential action occurs: the policy engine requires a
-human approval for every send, every calendar write, and every publication,
-and a mis-rated message becomes a mis-prioritized item in a queue rather than
-an action taken. The evaluation measures how good the triage is. The controls
-are what make the triage safe to be wrong about.
+**The safety argument does not rest on these numbers** — but it does rest on the
+controls actually working, which is a separate claim needing separate evidence.
+The design intent is that even at a false-safe rate of 100%, no consequential
+action occurs, because the policy engine requires a human approval for every
+send, every calendar write, and every publication. The 2026-09-17 review found
+three places where that intent was not met in code. They are fixed and tested;
+the general point is that this intent must be *verified*, not assumed. The
+evaluation measures how good the triage is. `scripts/verify-demo.sh` measures
+whether the triage is safe to be wrong about.

@@ -1,0 +1,88 @@
+- generic [active] [ref=f3e1]:
+  - generic [ref=f3e3]:
+    - banner [ref=f3e4]:
+      - generic [ref=f3e5]:
+        - generic [ref=f3e6]:
+          - paragraph [ref=f3e7]: Northline Retail Group
+          - paragraph [ref=f3e8]: Maya Hollis
+        - combobox "Acting as" [ref=f3e9]:
+          - option "Maya Hollis" [selected]
+          - option "Grace Whitfield"
+          - option "Marcus Field"
+          - option "Priya Raman"
+          - option "Dana Okonkwo"
+          - option "Lena Marsh"
+    - main [ref=f3e10]:
+      - generic [ref=f3e11]:
+        - generic [ref=f3e12]:
+          - heading "Insights" [level=1] [ref=f3e13]
+          - paragraph [ref=f3e14]: Different functions get different insights from different sources. Every claim carries the document it came from.
+        - generic [ref=f3e15]:
+          - heading "Ask the approved corpus" [level=2] [ref=f3e17]
+          - generic [ref=f3e18]:
+            - generic [ref=f3e19]: Your question
+            - textbox "Your question" [ref=f3e20]:
+              - /placeholder: Ask a question about the approved sources…
+            - button "Retrieve" [disabled] [ref=f3e22]
+          - generic [ref=f3e23]:
+            - button "What is driving freight cost this quarter?" [ref=f3e24] [cursor=pointer]
+            - button "Should the launch post go out under the CEO's profile?" [ref=f3e25] [cursor=pointer]
+            - button "Why are Southwest comps trailing?" [ref=f3e26] [cursor=pointer]
+        - generic [ref=f3e27]:
+          - heading "Approved sources for your function" [level=2] [ref=f3e29]
+          - list [ref=f3e30]:
+            - listitem [ref=f3e31]:
+              - generic [ref=f3e32]: internal report
+              - generic [ref=f3e33]: DC Operations Weekly — week 37 (internal)
+            - listitem [ref=f3e34]:
+              - generic [ref=f3e35]: competitor watch
+              - generic [ref=f3e36]: Competitor Watch Digest — specialty apparel (internal)
+            - listitem [ref=f3e37]:
+              - generic [ref=f3e38]: market data
+              - generic [ref=f3e39]: Mall Traffic and Comp Index — September (licensed)
+            - listitem [ref=f3e40]:
+              - generic [ref=f3e41]: internal report
+              - generic [ref=f3e42]: Peak Capacity Memo — Ontario and Grand Prairie (internal)
+            - listitem [ref=f3e43]:
+              - generic [ref=f3e44]: internal report
+              - generic [ref=f3e45]: Carrier Scorecard — Q3 (internal)
+            - listitem [ref=f3e46]:
+              - generic [ref=f3e47]: internal report
+              - generic [ref=f3e48]: Social Channel Performance — trailing 90 days (internal)
+            - listitem [ref=f3e49]:
+              - generic [ref=f3e50]: internal report
+              - generic [ref=f3e51]: Executive Voice Guidelines (internal)
+            - listitem [ref=f3e52]:
+              - generic [ref=f3e53]: internal report
+              - generic [ref=f3e54]: Month-End Close Commentary — September (internal)
+          - paragraph [ref=f3e55]: Generated from approved sources filtered to your function. Every claim carries a citation.
+        - generic [ref=f3e56]:
+          - heading "LOGISTICS" [level=2] [ref=f3e58]
+          - heading "West Coast dwell time is the peak risk, not labor capacity" [level=2] [ref=f3e59]
+          - paragraph [ref=f3e60]: Throughput per labor hour improved again in August, so the overtime request is buying schedule protection rather than fixing a productivity gap. The larger exposure is inbound container dwell, up 1.4 days, with two carriers adding congestion surcharges from the 24th. Worth asking whether some peak volume can be diverted to Grand Prairie before committing the full overtime line.
+          - paragraph [ref=f3e61]: "Source: DC Operations Weekly — week 37"
+        - generic [ref=f3e62]:
+          - heading "MARKETING" [level=2] [ref=f3e64]
+          - heading "Founder-voice posting is outperforming brand accounts 3x in the category" [level=2] [ref=f3e65]
+          - paragraph [ref=f3e66]: Two competitors are already running circularity campaigns this quarter, which narrows the novelty window for the denim program. Category data shows founder-voice posts outperforming brand-account posts by about 3x on engagement, which supports Sam's request to publish the launch under the CEO's own profile rather than the brand account.
+          - paragraph [ref=f3e67]: "Source: Competitor Watch Digest"
+        - generic [ref=f3e68]:
+          - heading "OPERATIONS" [level=2] [ref=f3e70]
+          - heading "Southwest softness tracks the market, not execution" [level=2] [ref=f3e71]
+          - paragraph [ref=f3e72]: Southwest comps are trailing at -1.1%, but the licensed traffic index shows the region running 2.0 points below the national line on weather-driven softness. That points to a traffic problem rather than a store execution problem, and argues against a regional intervention this month.
+          - paragraph [ref=f3e73]: "Source: Mall Traffic and Comp Index"
+        - generic [ref=f3e74]:
+          - heading "Prototype boundary" [level=2] [ref=f3e76]
+          - paragraph [ref=f3e77]: Retrieval is real — chunk, embed, filter by permission, rank, cite — but it runs over synthetic documents standing in for the client's approved reports, and the embedding is computed locally so the demo needs no network. Open-web ingestion waits until source licensing, reliability, confidentiality, and retention are settled with them. Retrieval version 2026-09-16.r1.
+    - navigation [ref=f3e78]:
+      - link "Home" [ref=f3e79] [cursor=pointer]:
+        - /url: /
+      - link "Inbox" [ref=f3e82] [cursor=pointer]:
+        - /url: /inbox
+      - link "Schedule" [ref=f3e86] [cursor=pointer]:
+        - /url: /schedule
+      - link "Approvals" [ref=f3e90] [cursor=pointer]:
+        - /url: /approvals
+      - link "More" [ref=f3e93] [cursor=pointer]:
+        - /url: /more
+  - alert [ref=f3e98]

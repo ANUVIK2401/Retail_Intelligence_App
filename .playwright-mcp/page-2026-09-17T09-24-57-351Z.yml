@@ -1,0 +1,64 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e3]:
+    - banner [ref=f4e4]:
+      - generic [ref=f4e5]:
+        - generic [ref=f4e6]:
+          - paragraph [ref=f4e7]: Northline Retail Group
+          - paragraph [ref=f4e8]: Maya Hollis
+        - combobox "Acting as" [ref=f4e9]:
+          - option "Maya Hollis" [selected]
+          - option "Grace Whitfield"
+          - option "Marcus Field"
+          - option "Priya Raman"
+          - option "Dana Okonkwo"
+          - option "Lena Marsh"
+    - main [ref=f4e10]:
+      - generic [ref=f4e11]:
+        - generic [ref=f4e12]:
+          - heading "Workspace" [level=1] [ref=f4e13]
+          - paragraph [ref=f4e14]: Private to you. Attached documents and saved conclusions stay inside this project.
+        - generic [ref=f4e15]:
+          - heading "Denim circularity launch" [level=2] [ref=f4e17]
+          - list [ref=f4e18]:
+            - listitem [ref=f4e19]:
+              - generic [ref=f4e20]: MH
+              - generic [ref=f4e21]:
+                - paragraph [ref=f4e22]: I want to announce the denim take-back program in my own voice. What is the angle?
+                - paragraph [ref=f4e23]: 1m ago
+                - button "Save to memory…" [ref=f4e24]
+            - listitem [ref=f4e25]:
+              - generic [ref=f4e26]: AI
+              - generic [ref=f4e27]:
+                - paragraph [ref=f4e28]: Thanks for sending this through. Respond as a thinking partner. Push on the idea, name what is weak, and suggest the next concrete step. Do not commit the company to anything. Let me know if anything changes before then.
+                - paragraph [ref=f4e29]: 1m ago · mock-deterministic-v1
+                - button "Save to memory…" [ref=f4e30]
+          - generic [ref=f4e31]:
+            - generic [ref=f4e32]: Continue the thread
+            - textbox "Continue the thread" [ref=f4e33]:
+              - /placeholder: Continue the thread…
+            - button "Send" [disabled] [ref=f4e34]
+        - generic [ref=f4e35]:
+          - heading "Memory" [level=2] [ref=f4e37]
+          - list [ref=f4e38]:
+            - listitem [ref=f4e39]:
+              - paragraph [ref=f4e40]: Saved decision
+              - paragraph [ref=f4e41]: Publish under the CEO profile, not the brand account.
+              - paragraph [ref=f4e42]: saved 1m ago
+          - generic [ref=f4e43]:
+            - paragraph [ref=f4e44]: Executive profile Long-term, and yours to edit. Survives every project.
+            - paragraph [ref=f4e45]: Project context Lives as long as this project does.
+            - paragraph [ref=f4e46]: Conversation state Working state. Not persisted, by design.
+            - paragraph [ref=f4e47]: Saved decision Holds until you change it.
+          - paragraph [ref=f4e48]: The assistant never decides on its own that something private should become permanent memory. A save carries a category and a saver, and a request to persist conversation state is refused rather than quietly downgraded.
+    - navigation [ref=f4e49]:
+      - link "Home" [ref=f4e50] [cursor=pointer]:
+        - /url: /
+      - link "Inbox" [ref=f4e53] [cursor=pointer]:
+        - /url: /inbox
+      - link "Schedule" [ref=f4e57] [cursor=pointer]:
+        - /url: /schedule
+      - link "Approvals" [ref=f4e61] [cursor=pointer]:
+        - /url: /approvals
+      - link "More" [ref=f4e64] [cursor=pointer]:
+        - /url: /more
+  - alert [ref=f4e69]

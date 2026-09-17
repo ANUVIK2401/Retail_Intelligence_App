@@ -1,0 +1,98 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - complementary [ref=f1e3]:
+      - generic [ref=f1e4]:
+        - paragraph [ref=f1e5]: Northline Retail Group
+        - paragraph [ref=f1e6]: Executive Command Center
+      - navigation [ref=f1e7]:
+        - link "Home" [ref=f1e8] [cursor=pointer]:
+          - /url: /
+        - link "Inbox" [ref=f1e9] [cursor=pointer]:
+          - /url: /inbox
+        - link "Schedule" [ref=f1e10] [cursor=pointer]:
+          - /url: /schedule
+        - link "Approvals" [ref=f1e11] [cursor=pointer]:
+          - /url: /approvals
+        - link "Insights" [ref=f1e12] [cursor=pointer]:
+          - /url: /insights
+        - link "Workspace" [ref=f1e13] [cursor=pointer]:
+          - /url: /workspace
+        - link "Publish" [ref=f1e14] [cursor=pointer]:
+          - /url: /publish
+        - link "Controls" [ref=f1e15] [cursor=pointer]:
+          - /url: /controls
+        - link "Audit history" [ref=f1e16] [cursor=pointer]:
+          - /url: /audit
+      - generic [ref=f1e39]:
+        - text: Acting as
+        - combobox [ref=f1e40]:
+          - option "Maya Hollis — Chief Executive Officer" [selected]
+          - option "Grace Whitfield — Executive Assistant to the CEO"
+          - option "Marcus Field — General Counsel"
+          - option "Priya Raman — Chief Financial Officer"
+          - option "Dana Okonkwo — Chief Digital and Information Officer"
+          - option "Lena Marsh — Internal Audit Lead"
+        - paragraph [ref=f1e41]: Stands in for Microsoft Entra sign-in. Switching identity changes what the policy engine permits.
+    - main [ref=f1e18]:
+      - generic [ref=f1e19]:
+        - generic [ref=f1e20]:
+          - heading "Publish" [level=1] [ref=f1e21]
+          - paragraph [ref=f1e22]: Draft, check, review, approve, export. The prototype never posts to an external platform.
+        - generic [ref=f1e23]:
+          - heading "Draft" [level=2] [ref=f1e25]
+          - generic [ref=f1e26]:
+            - button "Denim circularity launch" [ref=f1e27] [cursor=pointer]
+            - 'button "Adversarial: unreleased figure" [ref=f1e28] [cursor=pointer]'
+            - 'button "Adversarial: draft argues with the checker" [ref=f1e29] [cursor=pointer]'
+            - 'button "Adversarial: material non-public information" [ref=f1e30] [cursor=pointer]'
+          - generic [ref=f1e31]: Draft text
+          - textbox "Draft text" [ref=f1e32]: "We started collecting old denim in 2023. In the first year we threw a fifth of it away. Elastane blends jammed the separation line and we had no answer for them, so roughly 20% of what customers handed back went to landfill. We did not announce the program that year, because there was nothing worth announcing. This week we are opening take-back at every store. The blend problem is solved, the line runs at 94% recovery, and the pairs come back as new fabric rather than insulation. If you run an operation like this: publish the recovery rate, not the collection number. The collection number is marketing. The recovery rate is the business."
+          - button "Re-run checks" [ref=f1e42] [cursor=pointer]
+        - generic [ref=f1e43]:
+          - heading "Pre-publication checks" [level=2] [ref=f1e45]
+          - list [ref=f1e46]:
+            - listitem [ref=f1e47]:
+              - generic [ref=f1e48]: Pass
+              - generic [ref=f1e49]:
+                - paragraph [ref=f1e50]: Confidentiality scan
+                - paragraph [ref=f1e51]: No restricted topics, unreleased figures, supplier names, or store-level data.
+            - listitem [ref=f1e52]:
+              - generic [ref=f1e53]: Review
+              - generic [ref=f1e54]:
+                - paragraph [ref=f1e55]: Regulated claims
+                - paragraph [ref=f1e56]: "Substantiation required before publication: 94% recovery (environmental performance percentage); 20% (numeric performance claim)."
+            - listitem [ref=f1e57]:
+              - generic [ref=f1e58]: Pass
+              - generic [ref=f1e59]:
+                - paragraph [ref=f1e60]: Brand voice
+                - paragraph [ref=f1e61]: First-person executive register, consistent with prior posts.
+            - listitem [ref=f1e62]:
+              - generic [ref=f1e63]: Pass
+              - generic [ref=f1e64]:
+                - paragraph [ref=f1e65]: Material non-public information
+                - paragraph [ref=f1e66]: No transaction, guidance, or earnings content detected.
+          - paragraph [ref=f1e67]: Check version 2026-09-16.c1
+        - generic [ref=f1e68]:
+          - heading "Review chain" [level=2] [ref=f1e70]
+          - generic [ref=f1e71]: require approval
+          - paragraph [ref=f1e72]: The chain below is derived from which checks failed, not chosen by a model. Each added reviewer names the check that put them there.
+          - paragraph [ref=f1e73]: Approval ap_0003 — status awaiting approval, 0 of 3 steps cleared.
+          - list [ref=f1e74]:
+            - listitem [ref=f1e75]:
+              - generic [ref=f1e76]: "1"
+              - generic [ref=f1e77]: Communications review
+            - listitem [ref=f1e78]:
+              - generic [ref=f1e79]: "2"
+              - generic [ref=f1e80]:
+                - text: Legal review
+                - generic [ref=f1e81]: added because the regulated claims check failed
+            - listitem [ref=f1e82]:
+              - generic [ref=f1e83]: "3"
+              - generic [ref=f1e84]: Executive approval
+          - generic [ref=f1e85]:
+            - 'button "Approve as you: Communications review" [ref=f1e86] [cursor=pointer]'
+            - button "Export as unapproved draft" [ref=f1e87] [cursor=pointer]
+        - generic [ref=f1e34]:
+          - heading "Prototype boundary" [level=2] [ref=f1e36]
+          - paragraph [ref=f1e37]: Direct posting to LinkedIn, Substack, or Instagram is out of scope until API eligibility, ownership of the corporate accounts, and the review policy are confirmed with the client. There is no publish function in the code — not a disabled one — so enabling posting requires writing new code that a reviewer would see.
+  - alert [ref=f1e38]

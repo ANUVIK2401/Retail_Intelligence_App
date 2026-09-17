@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { MockCalendarConnector, MockMailConnector } from "@/core/connectors/mock";
-import type { ApprovalRequest, Person } from "@/core/contracts";
+import { RISK_ORDER, type ApprovalRequest, type Person } from "@/core/contracts";
 import { actorFromRequest } from "@/core/session";
 import {
   claimExecution,
@@ -203,11 +203,23 @@ function authorize(
   if (!step) return { ok: true };
 
   if (step.kind === "executive") {
+    // The executive step belongs to the person the request was raised for, or
+    // to someone holding an explicit delegation from them. Accepting any
+    // account with the "executive" role let one executive approve another's
+    // work, which is not how approval authority runs.
     const isOwner = actor.id === approval.requestedFor;
-    if (isOwner || actor.roles.includes("executive")) return { ok: true };
+    const delegated = DELEGATIONS.some(
+      (d) =>
+        d.delegateId === actor.id &&
+        d.executiveId === approval.requestedFor &&
+        RISK_ORDER[approval.risk] <= RISK_ORDER[d.maxRisk],
+    );
+    if (isOwner || delegated) return { ok: true };
+
+    const owner = personById(approval.requestedFor);
     return {
       ok: false,
-      reason: `This step requires the executive. ${actor.name} holds ${actor.roles.join(", ") || "no"} role and cannot clear it.`,
+      reason: `This step is ${owner?.name ?? "the requesting executive"}'s to clear. ${actor.name} holds no delegation for it.`,
     };
   }
 

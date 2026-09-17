@@ -1,0 +1,87 @@
+- generic [active] [ref=f2e1]:
+  - generic [ref=f2e3]:
+    - banner [ref=f2e4]:
+      - generic [ref=f2e5]:
+        - generic [ref=f2e6]:
+          - paragraph [ref=f2e7]: Northline Retail Group
+          - paragraph [ref=f2e8]: Maya Hollis
+        - combobox "Acting as" [ref=f2e9]:
+          - option "Maya Hollis" [selected]
+          - option "Grace Whitfield"
+          - option "Marcus Field"
+          - option "Priya Raman"
+          - option "Dana Okonkwo"
+          - option "Lena Marsh"
+    - main [ref=f2e10]:
+      - generic [ref=f2e11]:
+        - generic [ref=f2e12]:
+          - heading "Publish" [level=1] [ref=f2e13]
+          - paragraph [ref=f2e14]: Draft, check, review, approve, export. The prototype never posts to an external platform.
+        - generic [ref=f2e15]:
+          - heading "Draft" [level=2] [ref=f2e17]
+          - generic [ref=f2e18]:
+            - button "Denim circularity launch" [ref=f2e19] [cursor=pointer]
+            - 'button "Adversarial: unreleased figure" [ref=f2e20] [cursor=pointer]'
+            - 'button "Adversarial: draft argues with the checker" [ref=f2e21] [cursor=pointer]'
+            - 'button "Adversarial: material non-public information" [ref=f2e22] [cursor=pointer]'
+          - generic [ref=f2e23]: Draft text
+          - textbox "Draft text" [ref=f2e24]: "We started collecting old denim in 2023. In the first year we threw a fifth of it away. Elastane blends jammed the separation line and we had no answer for them, so roughly 20% of what customers handed back went to landfill. We did not announce the program that year, because there was nothing worth announcing. This week we are opening take-back at every store. The blend problem is solved, the line runs at 94% recovery, and the pairs come back as new fabric rather than insulation. If you run an operation like this: publish the recovery rate, not the collection number. The collection number is marketing. The recovery rate is the business."
+          - button "Re-run checks" [ref=f2e25] [cursor=pointer]
+        - generic [ref=f2e26]:
+          - heading "Pre-publication checks" [level=2] [ref=f2e28]
+          - list [ref=f2e29]:
+            - listitem [ref=f2e30]:
+              - generic [ref=f2e31]: Pass
+              - generic [ref=f2e32]:
+                - paragraph [ref=f2e33]: Confidentiality scan
+                - paragraph [ref=f2e34]: No restricted topics, unreleased figures, supplier names, or store-level data.
+            - listitem [ref=f2e35]:
+              - generic [ref=f2e36]: Review
+              - generic [ref=f2e37]:
+                - paragraph [ref=f2e38]: Regulated claims
+                - paragraph [ref=f2e39]: "Substantiation required before publication: 94% recovery (environmental performance percentage); 20% (numeric performance claim)."
+            - listitem [ref=f2e40]:
+              - generic [ref=f2e41]: Pass
+              - generic [ref=f2e42]:
+                - paragraph [ref=f2e43]: Brand voice
+                - paragraph [ref=f2e44]: First-person executive register, consistent with prior posts.
+            - listitem [ref=f2e45]:
+              - generic [ref=f2e46]: Pass
+              - generic [ref=f2e47]:
+                - paragraph [ref=f2e48]: Material non-public information
+                - paragraph [ref=f2e49]: No transaction, guidance, or earnings content detected.
+          - paragraph [ref=f2e50]: Check version 2026-09-16.c1
+        - generic [ref=f2e51]:
+          - heading "Review chain" [level=2] [ref=f2e53]
+          - generic [ref=f2e54]: require approval
+          - paragraph [ref=f2e55]: The chain below is derived from which checks failed, not chosen by a model. Each added reviewer names the check that put them there.
+          - list [ref=f2e56]:
+            - listitem [ref=f2e57]:
+              - generic [ref=f2e58]: "1"
+              - generic [ref=f2e59]: Communications review
+            - listitem [ref=f2e60]:
+              - generic [ref=f2e61]: "2"
+              - generic [ref=f2e62]:
+                - text: Legal review
+                - generic [ref=f2e63]: added because the regulated claims check failed
+            - listitem [ref=f2e64]:
+              - generic [ref=f2e65]: "3"
+              - generic [ref=f2e66]: Executive approval
+          - generic [ref=f2e67]:
+            - button "Send for review" [ref=f2e68] [cursor=pointer]
+            - button "Export as unapproved draft" [ref=f2e69] [cursor=pointer]
+        - generic [ref=f2e70]:
+          - heading "Prototype boundary" [level=2] [ref=f2e72]
+          - paragraph [ref=f2e73]: Direct posting to LinkedIn, Substack, or Instagram is out of scope until API eligibility, ownership of the corporate accounts, and the review policy are confirmed with the client. There is no publish function in the code — not a disabled one — so enabling posting requires writing new code that a reviewer would see.
+    - navigation [ref=f2e74]:
+      - link "Home" [ref=f2e75] [cursor=pointer]:
+        - /url: /
+      - link "Inbox" [ref=f2e78] [cursor=pointer]:
+        - /url: /inbox
+      - link "Schedule" [ref=f2e82] [cursor=pointer]:
+        - /url: /schedule
+      - link "Approvals" [ref=f2e86] [cursor=pointer]:
+        - /url: /approvals
+      - link "More" [ref=f2e89] [cursor=pointer]:
+        - /url: /more
+  - alert [ref=f2e94]

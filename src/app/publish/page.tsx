@@ -89,7 +89,9 @@ export default function PublishPage() {
   const [result, setResult] = useState<ReviewPayload | null>(null);
   const [step, setStep] = useState(0);
   const [running, setRunning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ kind: "checks" | "approval"; message: string } | null>(
+    null,
+  );
   const [approval, setApproval] = useState<ApprovalRecord | null>(null);
 
   const draft = DRAFTS.find((d) => d.id === draftId) ?? DRAFTS[0];
@@ -119,13 +121,19 @@ export default function PublishPage() {
         // A validation error is JSON without `checks`. Rendering it as a
         // review result crashed the page on `result.checks.map`.
         if (!res.ok || !Array.isArray(body?.checks)) {
-          setError(body?.error ?? `Checks could not run (HTTP ${res.status}).`);
+          setError({
+            kind: "checks",
+            message: body?.error ?? `Checks could not run (HTTP ${res.status}).`,
+          });
           return;
         }
         setResult(body);
         if (body.approval) setApproval(body.approval);
       } catch {
-        setError("Could not reach the check service. The draft was not changed.");
+        setError({
+          kind: "checks",
+          message: "Could not reach the check service. The draft was not changed.",
+        });
       } finally {
         setRunning(false);
       }
@@ -149,13 +157,16 @@ export default function PublishPage() {
       });
       const b = await res.json();
       if (!res.ok) {
-        setError(b?.error ?? "That approval step could not be cleared by your account.");
+        setError({
+          kind: "approval",
+          message: b?.error ?? "That approval step could not be cleared by your account.",
+        });
         return;
       }
       setApproval(b.approval);
       setStep(b.approval?.currentStep ?? 0);
     } catch {
-      setError("Could not reach the approval service.");
+      setError({ kind: "approval", message: "Could not reach the approval service." });
     } finally {
       setRunning(false);
     }
@@ -189,6 +200,13 @@ export default function PublishPage() {
               onClick={() => {
                 setDraftId(d.id);
                 setBody(d.body);
+                // Restoring a sample draft clears whatever state the previous
+                // attempt left behind, including a stale error card, and
+                // re-runs even when this draft is already selected.
+                setError(null);
+                setApproval(null);
+                setStep(0);
+                void run(d.body);
               }}
             >
               {d.label}
@@ -207,6 +225,7 @@ export default function PublishPage() {
             // that was reviewed, not to the textarea.
             if (approval) setApproval(null);
             if (result) setResult(null);
+            if (error) setError(null);
             setStep(0);
           }}
           rows={12}
@@ -228,12 +247,16 @@ export default function PublishPage() {
       </Card>
 
       {error && (
-        <Card title="Checks did not run">
+        <Card
+          title={error.kind === "approval" ? "That approval was refused" : "Checks did not run"}
+        >
           <p className="text-[13px] leading-relaxed" style={{ color: "var(--high)" }}>
-            {error}
+            {error.message}
           </p>
           <p className="muted mt-2 text-[13px]">
-            Your draft is unchanged. Fix the issue above and run the checks again.
+            {error.kind === "approval"
+              ? "The draft and its approval are unchanged. Switch identity in the sidebar to the reviewer this step names, then approve."
+              : "Your draft is unchanged. Fix the issue above and run the checks again."}
           </p>
         </Card>
       )}

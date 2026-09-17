@@ -56,7 +56,10 @@ export type ModeReport = {
   overEscalationRate: number;
   topicAccuracy: number;
   policyAgreement: number;
-  byFamily: Record<string, { total: number; falseSafe: number; recall: number }>;
+  byFamily: Record<
+    string,
+    { total: number; highRiskTotal: number; falseSafe: number; recall: number }
+  >;
   cases: CaseResult[];
 };
 
@@ -156,7 +159,12 @@ function summarize(mode: Mode, cases: CaseResult[]): ModeReport {
 
   const byFamily: ModeReport["byFamily"] = {};
   for (const c of cases) {
-    const bucket = (byFamily[c.family] ??= { total: 0, falseSafe: 0, recall: 0 });
+    const bucket = (byFamily[c.family] ??= {
+      total: 0,
+      highRiskTotal: 0,
+      falseSafe: 0,
+      recall: 0,
+    });
     bucket.total += 1;
     if (c.falseSafe) bucket.falseSafe += 1;
   }
@@ -164,9 +172,12 @@ function summarize(mode: Mode, cases: CaseResult[]): ModeReport {
     const fam = cases.filter(
       (c) => c.family === family && RISK_ORDER[c.expectedLevel] >= HIGH,
     );
+    bucket.highRiskTotal = fam.length;
+    // 0 rather than 1 when there is nothing to measure; the report prints
+    // "n/a" for this case rather than implying a perfect score.
     bucket.recall =
       fam.length === 0
-        ? 1
+        ? 0
         : fam.filter((c) => RISK_ORDER[c.actualLevel] >= HIGH).length / fam.length;
   }
 
