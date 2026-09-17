@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "tsc --noEmit && node --test --experimental-strip-types --import ./tests/alias.mjs tests/*.test.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types --import ./tests/alias.mjs tests/*.test.ts",
     "evaluate": "node --experimental-strip-types --import ./tests/alias.mjs scripts/evaluate.ts"
