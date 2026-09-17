@@ -247,6 +247,30 @@ PAP=$(python3 -c "import sys,json;print(json.load(sys.stdin).get('approval',{}).
 ck "review request creates an approval" '"status":"awaiting_approval"' "$PR"
 ck "an outsider cannot clear it"       '403'                       "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/approvals/$PAP/decide" -H 'content-type: application/json' -H "$(as p_auditor)" -d '{"outcome":"approved"}')"
 
+echo "== Scheduling: no false booking, scoped proposals (finding 7) =="
+SF=$(curl -s -X POST "$B/api/meeting-proposals" -H 'content-type: application/json' -H "$(as p_ceo)" \
+  -d "{\"requesterId\":\"p_coo\",\"attendeeIds\":[\"p_ceo\"],\"purpose\":\"Slot bounds\",\"durationMinutes\":30,\"sensitivity\":\"confidential\",\"earliest\":\"$FROM\",\"latest\":\"$TO\"}")
+SAP=$(python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('approval',{}).get('id',''))" <<<"$SF")
+OOB=$(curl -s -X POST "$B/api/approvals/$SAP/decide" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"outcome":"approved","slotIndex":99}')
+if grep -q '"execution":null\|"status":"failed"' <<<"$OOB"; then
+  echo "  PASS  F7 an out-of-range slot books nothing"; PASS=$((PASS+1));
+else echo "  FAIL  F7 an out-of-range slot books nothing"; echo "        got: ${OOB:0:200}"; FAIL=$((FAIL+1)); fi
+if grep -q 'calendar_event_created' <<<"$OOB"; then
+  echo "  FAIL  F7 no event is created for a bad slot"; FAIL=$((FAIL+1));
+else echo "  PASS  F7 no event is created for a bad slot"; PASS=$((PASS+1)); fi
+AGAIN=$(curl -s -X POST "$B/api/approvals/$SAP/decide" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"outcome":"approved","slotIndex":0}')
+ck "F7 a failed booking is not silently retried" 'can no longer be decided' "$AGAIN"
+
+SOK=$(curl -s -X POST "$B/api/meeting-proposals" -H 'content-type: application/json' -H "$(as p_ceo)" \
+  -d "{\"requesterId\":\"p_coo\",\"attendeeIds\":[\"p_ceo\"],\"purpose\":\"Valid slot\",\"durationMinutes\":30,\"sensitivity\":\"confidential\",\"earliest\":\"$FROM\",\"latest\":\"$TO\"}")
+SOKAP=$(python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('approval',{}).get('id',''))" <<<"$SOK")
+ck "F7 a valid slot does book an event" 'calendar_event_created' "$(curl -s -X POST "$B/api/approvals/$SOKAP/decide" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"outcome":"approved","slotIndex":0}')"
+
+UNREL=$(curl -s -w '\n%{http_code}' -X POST "$B/api/meeting-proposals" -H 'content-type: application/json' -H "$(as p_auditor)" -d "{\"requesterId\":\"p_coo\",\"attendeeIds\":[\"p_cfo\"],\"purpose\":\"x\",\"durationMinutes\":30,\"sensitivity\":\"normal\",\"earliest\":\"$FROM\",\"latest\":\"$TO\"}")
+ck "an unrelated identity cannot propose" '403'                  "$UNREL"
+ck "the refusal names the actor"          'Lena Marsh'           "$UNREL"
+ck "proposals are scoped to the actor"    '"proposals":\[\]'    "$(curl -s "$B/api/meeting-proposals" -H "$(as p_cdio)")"
+
 echo "== Audit trail =="
 A=$(curl -s "$B/api/audit-events")
 ck "assessments recorded"      'email.assess'                 "$A"

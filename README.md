@@ -30,7 +30,7 @@ ANTHROPIC_API_KEY=sk-... npm run dev
 ```bash
 npm run build
 npm run start &
-PORT=3000 bash scripts/verify-demo.sh     # 38 checks
+PORT=3000 bash scripts/verify-demo.sh     # 115 checks
 ```
 
 The suite covers the four demo scenarios plus six adversarial cases: prompt

@@ -25,7 +25,7 @@ key. For a recorded walkthrough that Ben can forward, that removes every failure
 mode that is not our code.
 
 The test suite keeps working after B11, because it tests behaviour rather than
-Graph. A Graph adapter that diverges fails the same 38 checks.
+Graph. A Graph adapter that diverges fails the same verification suite.
 
 Development does not block on IT. The client's security review can happen on its
 own schedule while the product keeps moving.

@@ -42,7 +42,7 @@ the four memory categories and an enforced explicit-save rule (B9), a
 publication check pipeline whose review chain is derived from the failed checks
 (B10), and an evaluation harness over 63 labelled synthetic messages (B12).
 
-`scripts/verify-demo.sh` passes 84 checks covering the four demo scenarios, the
+`scripts/verify-demo.sh` passes 115 checks covering the four demo scenarios, the
 adversarial cases, the three new modules, the evaluation gate, and the unit
 tests. `npm test` passes 18 unit tests. `npm run evaluate` regenerates
 `docs/EVALUATION.md`.
@@ -51,6 +51,21 @@ The evaluation earned its place immediately: it found two genuinely high-risk
 messages rated low, both threatened legal claims phrased without any of the
 words `R-LEGAL` looked for. The rule was widened and the false-safe rate went
 from 5.9% to 0%.
+
+An end-to-end readiness review on 2026-09-17 then found what the evaluation
+could not see, because triage quality and control integrity are different
+properties. Seven findings, four of them high severity, three of which broke
+the one sentence this build exists to defend: restricted content was returned
+after the policy engine said `deny`; one approval executed twice and produced
+two drafts; and publication exports printed "Approved by" using the list of
+*required* reviewers, so every export claimed approvals that had never
+happened. All seven are fixed, each with a regression case, and the suite grew
+from 84 to 115 checks as a result.
+
+The lesson worth carrying into the pilot: a green suite is evidence only about
+what it tests. The 84-check suite passed while all four high findings were
+live, because it tested restricted access on the inbox routes and never on the
+assessment, dashboard, or approval-listing routes.
 
 ---
 

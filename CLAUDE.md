@@ -116,7 +116,7 @@ Each is listed with its unblocking condition in `docs/00-BUILD-PLAN.md`.
 ## Definition of done for any change
 
 1. `npm run build` is clean.
-2. `scripts/verify-demo.sh` passes 38/38 against a running server.
+2. `scripts/verify-demo.sh` passes 115/115 against a running server.
 3. If the change touches risk, policy, connectors, or the gateway, add a case to
    that script, including an adversarial one.
 4. The nine invariants above still hold.

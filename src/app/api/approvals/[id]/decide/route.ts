@@ -142,8 +142,22 @@ export async function POST(
         });
       } else if (updated.subjectType === "meeting_proposal") {
         const proposal = getProposal(updated.subjectId);
-        const slot = proposal?.slots[body.slotIndex ?? 0];
-        if (proposal && slot) {
+        const slotIndex = body.slotIndex ?? 0;
+        const slot = proposal?.slots[slotIndex];
+
+        // A missing proposal or an out-of-range slot must fail the approval,
+        // not silently complete it. The earlier version fell through to
+        // `status = "completed"` having created no event at all, so the UI
+        // reported a booking that did not exist.
+        if (!proposal) {
+          throw new Error("The meeting proposal for this approval no longer exists.");
+        }
+        if (!slot) {
+          throw new Error(
+            `Slot ${slotIndex} is not one of the ${proposal.slots.length} proposed times. Nothing was booked.`,
+          );
+        }
+        {
           const event = await calendar.createEvent({
             ownerId: proposal.request.attendeeIds[0],
             attendeeIds: proposal.request.attendeeIds,
