@@ -135,7 +135,7 @@ ck "MNPI produces no review chain"     '"chain":\[\]'            "$PM"
 PME=$(curl -s -X POST "$B/api/publications" -H 'content-type: application/json' -H "$(as p_ceo)" -d "${PMNPI%\}}, \"export\": true}")
 ck "blocked draft cannot be exported"  'not exported'             "$PME"
 PE=$(curl -s -X POST "$B/api/publications" -H 'content-type: application/json' -H "$(as p_ceo)" -d "${PCLEAN%\}}, \"export\": true}")
-ck "clean draft exports a file"        'post this text manually'  "$PE"
+ck "unapproved export is not postable" 'NOT CLEARED FOR POSTING'  "$PE"
 ck "export is audited"                 'publication.export'       "$(curl -s "$B/api/audit-events")"
 if grep -rn "fetch(.*linkedin\.com\|api\.linkedin\|graph\.facebook\|substack\.com" src/ >/dev/null 2>&1; then
   echo "  FAIL  no outbound publish path exists"; FAIL=$((FAIL+1));
@@ -177,6 +177,67 @@ ck "the report is written"             'wrote docs/EVALUATION.md'    "$EV"
 echo "== Unit tests =="
 UT=$(npm test 2>&1 | tail -20)
 ck "all unit tests pass"               'fail 0'                      "$UT"
+
+echo "== Readiness review regressions (findings 1-6) =="
+# F1: restricted content must not leak through the assessment path.
+F1=$(curl -s -w '\n%{http_code}' -X POST "$B/api/emails/e_restricted/assess" -H "$(as p_ea)")
+ck "F1 EA assess is refused (403)"     '403'                       "$F1"
+if grep -qi 'indication of interest\|take-private\|acquisition' <<<"$F1"; then
+  echo "  FAIL  F1 no restricted content in the refusal"; FAIL=$((FAIL+1));
+else echo "  PASS  F1 no restricted content in the refusal"; PASS=$((PASS+1)); fi
+ck "F1 CEO assess still works"         '"level"'                   "$(curl -s -X POST "$B/api/emails/e_restricted/assess" -H "$(as p_ceo)")"
+# F1b: dashboard must not leak the restricted row to the EA.
+DASH=$(curl -s "$B/api/dashboard" -H "$(as p_ea)")
+if grep -qi 'indication of interest\|Clearwater\|take-private' <<<"$DASH"; then
+  echo "  FAIL  F1 dashboard withholds restricted subjects"; FAIL=$((FAIL+1));
+else echo "  PASS  F1 dashboard withholds restricted subjects"; PASS=$((PASS+1)); fi
+# F1c: audit details carry identifiers, not subjects.
+if grep -q 'Assessed "' <<<"$(curl -s "$B/api/audit-events")"; then
+  echo "  FAIL  F1 audit detail carries no subject"; FAIL=$((FAIL+1));
+else echo "  PASS  F1 audit detail carries no subject"; PASS=$((PASS+1)); fi
+
+# F2: one approval must execute exactly once.
+A2=$(curl -s -X POST "$B/api/emails/e_approval/assess" -H "$(as p_ceo)")
+AP2=$(python3 -c "import sys,json;print(json.load(sys.stdin)['approval']['id'])" <<<"$A2")
+curl -s -X POST "$B/api/approvals/$AP2/decide" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"outcome":"approved"}' >/dev/null
+R2A=$(curl -s -X POST "$B/api/approvals/$AP2/decide" -H 'content-type: application/json' -H "$(as p_cfo)" -d '{"outcome":"approved"}')
+R2B=$(curl -s -w '\n%{http_code}' -X POST "$B/api/approvals/$AP2/decide" -H 'content-type: application/json' -H "$(as p_cfo)" -d '{"outcome":"approved"}')
+ck "F2 first approval executes"        'outlook_draft_created'     "$R2A"
+ck "F2 replay is refused (409)"        '409'                       "$R2B"
+ck "F2 replay explains the state"      'can no longer be decided'  "$R2B"
+if grep -q 'dr_e_approval_2' <<<"$R2B"; then
+  echo "  FAIL  F2 no second draft is created"; FAIL=$((FAIL+1));
+else echo "  PASS  F2 no second draft is created"; PASS=$((PASS+1)); fi
+
+# F3: an export must never claim approvals that did not happen.
+E3=$(curl -s -X POST "$B/api/publications" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"title":"Community weekend","channel":"linkedin","body":"Our stores welcome the community this weekend and we are glad to host.","export":true}')
+ck "F3 unapproved export is labelled"  'NOT APPROVED'              "$E3"
+ck "F3 unapproved export warns"        'NOT CLEARED FOR POSTING'   "$E3"
+if grep -q 'Approved by: Communications review' <<<"$E3"; then
+  echo "  FAIL  F3 required reviewers are not shown as approvers"; FAIL=$((FAIL+1));
+else echo "  PASS  F3 required reviewers are not shown as approvers"; PASS=$((PASS+1)); fi
+
+# F4: insight permission is not inherited through a shared source.
+I4=$(curl -s "$B/api/insights" -H "$(as p_vp_logistics)")
+if grep -q 'src_traffic' <<<"$I4"; then
+  echo "  FAIL  F4 logistics does not inherit operations sources"; FAIL=$((FAIL+1));
+else echo "  PASS  F4 logistics does not inherit operations sources"; PASS=$((PASS+1)); fi
+ck "F4 logistics keeps its own insight" 'i_logistics'              "$I4"
+
+# F5: publication check bypasses.
+ck "F5 verb-before-noun guidance blocks" '"blocked":true'          "$(curl -s -X POST "$B/api/publications" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"title":"Note","channel":"linkedin","body":"We will raise earnings guidance tomorrow; this is confidential."}')"
+ck "F5 percent before punctuation fails" '"name":"regulated_claims","label":"Regulated claims","passed":false' "$(curl -s -X POST "$B/api/publications" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"title":"Note","channel":"linkedin","body":"We reduced our operating costs by 30%. A good result for the team."}')"
+ck "F5 the title is scanned too"         '"blocked":true'          "$(curl -s -X POST "$B/api/publications" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"title":"Our merger with Clearwater","channel":"linkedin","body":"More news for all of you later this week, stay tuned."}')"
+
+# F6: a short draft returns a clean 400, not a crash.
+ck "F6 short draft is a 400"           '400'                       "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/publications" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"title":"x","channel":"linkedin","body":"short"}')"
+ck "F6 the 400 explains itself"        'at least twenty'           "$(curl -s -X POST "$B/api/publications" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"title":"x","channel":"linkedin","body":"short"}')"
+
+echo "== Publication approval is real =="
+PR=$(curl -s -X POST "$B/api/publications" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"title":"Denim launch","channel":"linkedin","body":"We started collecting old denim in 2023 and in the first year we threw a fifth of it away.","requestApproval":true}')
+PAP=$(python3 -c "import sys,json;print(json.load(sys.stdin).get('approval',{}).get('id',''))" <<<"$PR")
+ck "review request creates an approval" '"status":"awaiting_approval"' "$PR"
+ck "an outsider cannot clear it"       '403'                       "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/approvals/$PAP/decide" -H 'content-type: application/json' -H "$(as p_auditor)" -d '{"outcome":"approved"}')"
 
 echo "== Audit trail =="
 A=$(curl -s "$B/api/audit-events")

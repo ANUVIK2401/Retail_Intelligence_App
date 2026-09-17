@@ -125,8 +125,17 @@ export function decideApproval(input: {
 }): ApprovalRequest {
   const approval = store.approvals.get(input.id);
   if (!approval) throw new Error("Unknown approval request.");
-  if (approval.status === "approved" || approval.status === "rejected") {
-    throw new Error("This request has already been decided.");
+
+  // Only a request that is still awaiting a decision may receive one. The
+  // earlier version of this check listed approved/rejected, which let a
+  // `completed` request re-enter the chain and execute a second time: one
+  // approval, two drafts. Terminal states are enumerated rather than
+  // excluded so a new status cannot silently become re-approvable.
+  const DECIDABLE = new Set(["proposed", "awaiting_approval"]);
+  if (!DECIDABLE.has(approval.status)) {
+    throw new Error(
+      `This request is ${approval.status} and can no longer be decided. Start a new request if something needs to change.`,
+    );
   }
 
   approval.history.push({
@@ -137,8 +146,22 @@ export function decideApproval(input: {
     note: input.note ?? null,
   });
 
-  if (input.editedContent !== undefined) {
+  // Editing the content invalidates every approval already collected against
+  // the previous text. Otherwise a reviewer's sign-off silently transfers to
+  // words they never read.
+  if (input.editedContent !== undefined && input.editedContent !== approval.proposedContent) {
     approval.proposedContent = input.editedContent;
+    approval.contentVersion += 1;
+    if (approval.currentStep > 0) {
+      approval.currentStep = 0;
+      approval.history.push({
+        at: new Date().toISOString(),
+        actorId: input.actorId,
+        actorRole: input.actorRole,
+        outcome: "escalated",
+        note: "Content was edited, so previously collected approvals no longer apply and the chain restarted.",
+      });
+    }
   }
 
   if (input.outcome === "rejected") {
@@ -260,4 +283,21 @@ export function saveMemory(input: Omit<MemoryEntry, "id" | "savedAt">): MemoryEn
 
 export function listMemory(workspaceId: string): MemoryEntry[] {
   return store.memory.get(workspaceId) ?? [];
+}
+
+/**
+ * Atomically claims the right to execute an approval exactly once.
+ *
+ * Returns true for the first caller and false for every caller after it. The
+ * check and the flip happen with no await between them, which is what makes
+ * this safe on Node's single-threaded event loop; a database implementation
+ * would use a conditional update on the same field.
+ */
+export function claimExecution(id: string): boolean {
+  const approval = store.approvals.get(id);
+  if (!approval) return false;
+  if (approval.executionClaimed) return false;
+  approval.executionClaimed = true;
+  store.approvals.set(id, approval);
+  return true;
 }

@@ -10,10 +10,16 @@ import {
 } from "@/core/contracts";
 import { evaluatePolicy } from "@/core/policy/engine";
 import { INJECTION_PATTERNS, evaluateDeterministicRisk } from "@/core/risk/rules";
+import { canReadMessage, safeAuditLabel } from "@/core/access";
 import { nextId, recordAudit, saveApproval, saveAssessment, store } from "@/core/store";
 import { personById } from "@/data/org";
 
 const mail = new MockMailConnector();
+
+/** Thrown when the acting identity may not read the message at all. */
+export class AccessDeniedError extends Error {
+  readonly status = 403;
+}
 
 /**
  * The email assessment pipeline.
@@ -38,6 +44,31 @@ export async function assessEmail(input: {
   const owner = personById(email.mailboxOwnerId);
   const sender = personById(email.fromId);
   if (!actor || !owner) throw new Error("Unknown actor or mailbox owner.");
+
+  /* 0. Read access, BEFORE any model sees the content.
+   *
+   * This must stay first. Classifying and then refusing still sends the
+   * content to a provider and still returns a summary of material the actor
+   * may not read, which is exactly what a `deny` is supposed to prevent. */
+  const gate = canReadMessage(actor, email);
+  if (!gate.ok) {
+    recordAudit({
+      correlationId,
+      actorId: actor.id,
+      actorRole: actor.roles[0] ?? "executive",
+      action: "email.assess",
+      resourceType: "email",
+      resourceId: email.id,
+      outcome: "denied",
+      risk: null,
+      policyVersion: gate.decision.policyVersion,
+      matchedRules: gate.decision.matchedRules,
+      aiModel: null,
+      promptVersion: null,
+      detail: `Assessment refused for ${safeAuditLabel(email)}. No content was read and no model was called.`,
+    });
+    throw new AccessDeniedError(gate.decision.reason);
+  }
 
   /* 1. Deterministic rules, before any model sees the content. */
   const det = evaluateDeterministicRisk({
@@ -157,9 +188,11 @@ export async function assessEmail(input: {
     matchedRules: [...risk.triggeredRules, ...draftDecision.matchedRules],
     aiModel: provider.model,
     promptVersion: PROMPT_VERSION,
+    // Identifier, never the subject: the audit trail is read by auditors who
+    // are not cleared for every message it references. (Invariant 8.)
     detail: injectionSuspected
-      ? `Assessed "${email.subject}". Instruction-injection attempt detected in message body and ignored.`
-      : `Assessed "${email.subject}".`,
+      ? `Assessed ${safeAuditLabel(email)}. Instruction-injection attempt detected in message body and ignored.`
+      : `Assessed ${safeAuditLabel(email)}.`,
   });
 
   /* 6. Anything consequential becomes a pending approval, never an action. */
@@ -184,6 +217,8 @@ export async function assessEmail(input: {
       decision: draftDecision,
       currentStep: 0,
       status: "awaiting_approval",
+      contentVersion: 0,
+      executionClaimed: false,
       requestedFor: email.mailboxOwnerId,
       createdAt: new Date().toISOString(),
       history: [],

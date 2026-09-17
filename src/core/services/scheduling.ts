@@ -111,6 +111,8 @@ export async function proposeMeeting(input: {
       decision,
       currentStep: 0,
       status: "awaiting_approval",
+      contentVersion: 0,
+      executionClaimed: false,
       requestedFor: owner.id,
       createdAt: new Date().toISOString(),
       history: [],

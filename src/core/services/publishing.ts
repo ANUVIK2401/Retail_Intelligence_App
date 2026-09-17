@@ -85,7 +85,9 @@ const REGULATED_CLAIM_PATTERNS: { re: RegExp; why: string }[] = [
     why: "environmental performance percentage",
   },
   {
-    re: /\b\d{1,3}(\.\d+)?\s?%\b/,
+    // No trailing \b: "30%." and "30% " both failed it, because % is not a
+    // word character so there is no boundary after it.
+    re: /\b\d{1,3}(\.\d+)?\s?%/,
     why: "numeric performance claim",
   },
   {
@@ -106,7 +108,10 @@ const REGULATED_CLAIM_PATTERNS: { re: RegExp; why: string }[] = [
 const MNPI_PATTERNS: { re: RegExp; why: string }[] = [
   { re: /\b(merger|acquisition|acquire[sd]?|take-?private|tender offer)\b/i, why: "transaction" },
   { re: /\b(letter of intent|indication of interest|due diligence|exclusivity)\b/i, why: "deal process" },
-  { re: /\b(guidance|earnings|results)\b[^.]{0,40}\b(raise|lower|revise|beat|miss|ahead of|below)\b/i, why: "guidance change" },
+  // Both orders: "guidance will be raised" and "we will raise guidance".
+  { re: /\b(guidance|earnings|results|forecast|outlook)\b[^.]{0,40}\b(raise[sd]?|rais(e|ing)|lower(ed|ing)?|revis(e|ed|ing)|beat|miss(ed)?|ahead of|below)\b/i, why: "guidance change" },
+  { re: /\b(raise|raising|lower|lowering|revise|revising|cut|cutting|increase|increasing)\b[^.]{0,40}\b(guidance|earnings|forecast|outlook|results)\b/i, why: "guidance change" },
+  { re: /\b(pre-?announce|ahead of (the )?(earnings|results|announcement))\b/i, why: "pre-announcement" },
   { re: /\b(material non-?public|inside information|blackout period)\b/i, why: "explicit MNPI reference" },
   { re: /\bdivestiture|\bspin-?off\b/i, why: "structural transaction" },
 ];
@@ -338,7 +343,16 @@ export function exportForHuman(input: {
   channel: string;
   title: string;
   body: string;
+  /**
+   * Reviewers who actually decided, from the approval record. NOT the chain
+   * of reviewers who are required — an earlier version passed the required
+   * chain here, so every export claimed approvals that had never happened.
+   */
   approvedBy: string[];
+  /** True only when a real approval record reached `approved`. */
+  approvalComplete: boolean;
+  /** The approval this export is evidence of, when there is one. */
+  approvalId: string | null;
   review: PublicationReview;
 }): ExportedPost {
   if (input.review.blocked) {
@@ -347,14 +361,34 @@ export function exportForHuman(input: {
     );
   }
 
+  // An unapproved export is allowed, because a person may legitimately want
+  // the text while review is still running. It is labelled as what it is.
+  // What is never allowed is an unapproved export that reads as approved.
+  const provenance = input.approvalComplete
+    ? [
+        `Status: APPROVED`,
+        `Approval id: ${input.approvalId ?? "unknown"}`,
+        `Approved by: ${input.approvedBy.join(" -> ")}`,
+      ]
+    : [
+        `Status: DRAFT — NOT APPROVED. Do not post this text.`,
+        `Approval id: ${input.approvalId ?? "none requested"}`,
+        input.approvedBy.length > 0
+          ? `Decisions so far: ${input.approvedBy.join(" -> ")}`
+          : `Decisions so far: none. No reviewer has seen this draft.`,
+        `Still required: ${input.review.chain.map((s) => s.label).join(" -> ")}`,
+      ];
+
   const header = [
     `Channel: ${input.channel}`,
     `Title: ${input.title}`,
-    `Approved by: ${input.approvedBy.join(" -> ")}`,
+    ...provenance,
     `Checks: ${input.review.checks.map((c) => `${c.label}=${c.passed ? "pass" : "review"}`).join(", ")}`,
     `Check version: ${input.review.checkVersion}`,
     "",
-    "--- post this text manually ---",
+    input.approvalComplete
+      ? "--- post this text manually ---"
+      : "--- NOT CLEARED FOR POSTING ---",
     "",
   ].join("\n");
 

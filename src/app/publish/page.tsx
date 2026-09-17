@@ -20,6 +20,14 @@ type ReviewStep = {
   becauseOf: string[];
 };
 
+type ApprovalRecord = {
+  id: string;
+  status: string;
+  currentStep: number;
+  decision: { approvalChain: { label: string }[] };
+  history: { actorId: string; outcome: string }[];
+};
+
 type ReviewPayload = {
   decision: PolicyDecision;
   checks: CheckResult[];
@@ -28,6 +36,7 @@ type ReviewPayload = {
   blockedReason: string | null;
   checkVersion: string;
   exported?: { filename: string; content: string };
+  approval?: ApprovalRecord | null;
   error?: string;
 };
 
@@ -80,12 +89,18 @@ export default function PublishPage() {
   const [result, setResult] = useState<ReviewPayload | null>(null);
   const [step, setStep] = useState(0);
   const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [approval, setApproval] = useState<ApprovalRecord | null>(null);
 
   const draft = DRAFTS.find((d) => d.id === draftId) ?? DRAFTS[0];
 
   const run = useCallback(
-    async (text: string, wantExport = false) => {
+    async (
+      text: string,
+      opts: { export?: boolean; requestApproval?: boolean; approvalId?: string | null } = {},
+    ) => {
       setRunning(true);
+      setError(null);
       try {
         const res = await fetch("/api/publications", {
           method: "POST",
@@ -94,12 +109,23 @@ export default function PublishPage() {
             title: draft.title,
             channel: "linkedin",
             body: text,
-            export: wantExport,
+            export: opts.export === true,
+            requestApproval: opts.requestApproval === true,
+            approvalId: opts.approvalId ?? null,
           }),
         });
-        setResult(await res.json());
+        const body = await res.json();
+
+        // A validation error is JSON without `checks`. Rendering it as a
+        // review result crashed the page on `result.checks.map`.
+        if (!res.ok || !Array.isArray(body?.checks)) {
+          setError(body?.error ?? `Checks could not run (HTTP ${res.status}).`);
+          return;
+        }
+        setResult(body);
+        if (body.approval) setApproval(body.approval);
       } catch {
-        setResult(null);
+        setError("Could not reach the check service. The draft was not changed.");
       } finally {
         setRunning(false);
       }
@@ -107,9 +133,38 @@ export default function PublishPage() {
     [draft.title],
   );
 
+  /**
+   * Clears one step of the chain through the ordinary approval gate, which
+   * re-checks authorization against the acting identity. The buttons used to
+   * increment local state, so the export claimed approvals nobody had given.
+   */
+  async function decide(id: string) {
+    setRunning(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/approvals/${id}/decide`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ outcome: "approved" }),
+      });
+      const b = await res.json();
+      if (!res.ok) {
+        setError(b?.error ?? "That approval step could not be cleared by your account.");
+        return;
+      }
+      setApproval(b.approval);
+      setStep(b.approval?.currentStep ?? 0);
+    } catch {
+      setError("Could not reach the approval service.");
+    } finally {
+      setRunning(false);
+    }
+  }
+
   useEffect(() => {
     setStep(0);
-    void run(body);
+    setApproval(null);
+    void run(DRAFTS.find((d) => d.id === draftId)?.body ?? body);
     // Re-runs when the selected draft changes, not on every keystroke.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftId]);
@@ -146,7 +201,14 @@ export default function PublishPage() {
         <textarea
           id="draft-body"
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={(e) => {
+            setBody(e.target.value);
+            // Editing invalidates review state: approvals belong to the text
+            // that was reviewed, not to the textarea.
+            if (approval) setApproval(null);
+            if (result) setResult(null);
+            setStep(0);
+          }}
           rows={12}
           className="w-full rounded-lg border p-3 font-sans text-[13px] leading-relaxed"
           style={{ borderColor: "var(--border)", background: "var(--bg)" }}
@@ -157,12 +219,24 @@ export default function PublishPage() {
           disabled={running}
           onClick={() => {
             setStep(0);
+            setApproval(null);
             void run(body);
           }}
         >
           {running ? "Running checks…" : "Re-run checks"}
         </button>
       </Card>
+
+      {error && (
+        <Card title="Checks did not run">
+          <p className="text-[13px] leading-relaxed" style={{ color: "var(--high)" }}>
+            {error}
+          </p>
+          <p className="muted mt-2 text-[13px]">
+            Your draft is unchanged. Fix the issue above and run the checks again.
+          </p>
+        </Card>
+      )}
 
       {result && (
         <>
@@ -207,6 +281,14 @@ export default function PublishPage() {
                   The chain below is derived from which checks failed, not chosen by a
                   model. Each added reviewer names the check that put them there.
                 </Reason>
+                {approval && (
+                  <p className="muted mt-2 text-[11px]">
+                    Approval {approval.id} — status {approval.status.replace(/_/g, " ")},
+                    {" "}
+                    {approval.history.filter((h) => h.outcome === "approved").length} of{" "}
+                    {approval.decision.approvalChain.length} steps cleared.
+                  </p>
+                )}
                 <ol className="mt-3 space-y-2">
                   {result.chain.map((s, i) => (
                     <li key={s.label} className="flex items-start gap-2 text-sm">
@@ -246,24 +328,42 @@ export default function PublishPage() {
                 </ol>
 
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {step < result.chain.length ? (
+                  {!approval ? (
                     <button
                       className="btn btn-primary"
                       style={{ minHeight: 44 }}
-                      onClick={() => setStep((s) => s + 1)}
+                      disabled={running}
+                      onClick={() => void run(body, { requestApproval: true })}
                     >
-                      Clear: {result.chain[step].label}
+                      Send for review
+                    </button>
+                  ) : approval.status === "approved" || approval.status === "completed" ? (
+                    <button
+                      className="btn btn-primary"
+                      style={{ minHeight: 44 }}
+                      disabled={running}
+                      onClick={() => void run(body, { export: true, approvalId: approval.id })}
+                    >
+                      Export approved text
                     </button>
                   ) : (
                     <button
                       className="btn btn-primary"
                       style={{ minHeight: 44 }}
                       disabled={running}
-                      onClick={() => void run(body, true)}
+                      onClick={() => void decide(approval.id)}
                     >
-                      Export for a human to post
+                      Approve as you: {approval.decision.approvalChain[approval.currentStep]?.label ?? "final step"}
                     </button>
                   )}
+                  <button
+                    className="btn"
+                    style={{ minHeight: 44 }}
+                    disabled={running}
+                    onClick={() => void run(body, { export: true, approvalId: approval?.id ?? null })}
+                  >
+                    Export as unapproved draft
+                  </button>
                   {step > 0 && (
                     <button
                       className="btn"

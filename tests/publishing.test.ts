@@ -68,6 +68,8 @@ test("a blocked draft cannot be exported", () => {
         title: "Big news",
         body: MNPI,
         approvedBy: [],
+        approvalComplete: false,
+        approvalId: null,
         review: r,
       }),
     /not exported/,
@@ -80,16 +82,54 @@ test("the chain is a pure function of the check results", () => {
   assert.equal(deriveReviewChain.length, 1, "chain derivation takes checks and nothing else");
 });
 
-test("export returns a file rather than performing an effect", () => {
+test("an approved export returns a file rather than performing an effect", () => {
   const r = review(CLEAN);
   const out = exportForHuman({
     channel: "linkedin",
     title: "Denim circularity launch",
     body: CLEAN,
-    approvedBy: r.chain.map((s) => s.label),
+    approvedBy: ["Maya Hollis (executive)"],
+    approvalComplete: true,
+    approvalId: "ap_0001",
     review: r,
   });
   assert.match(out.filename, /\.txt$/);
   assert.equal(out.contentType, "text/plain");
   assert.match(out.content, /post this text manually/);
+});
+
+test("an export with no approval is labelled as not cleared for posting", () => {
+  const r = review(CLEAN);
+  const out = exportForHuman({
+    channel: "linkedin",
+    title: "Denim circularity launch",
+    body: CLEAN,
+    approvedBy: [],
+    approvalComplete: false,
+    approvalId: null,
+    review: r,
+  });
+  assert.match(out.content, /NOT APPROVED/);
+  assert.match(out.content, /NOT CLEARED FOR POSTING/);
+  assert.match(out.content, /no reviewer has seen this draft/i);
+  assert.doesNotMatch(
+    out.content,
+    /post this text manually/,
+    "an unapproved export must not read as postable",
+  );
+});
+
+test("required reviewers are never presented as having approved", () => {
+  const r = review(CLEAN);
+  const out = exportForHuman({
+    channel: "linkedin",
+    title: "t",
+    body: CLEAN,
+    approvedBy: [],
+    approvalComplete: false,
+    approvalId: null,
+    review: r,
+  });
+  // The regression: the chain labels used to be printed as "Approved by".
+  assert.doesNotMatch(out.content, /Approved by: Communications review/);
 });

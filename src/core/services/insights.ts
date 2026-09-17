@@ -278,3 +278,28 @@ function bestSentence(question: string, chunkText: string): string {
   }
   return best.trim().replace(/[.;]$/, ".");
 }
+
+/* ------------------------------------------------------------------ */
+/* Curated insight visibility                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Filters pre-written insights by checking EVERY cited source against this
+ * actor's own function.
+ *
+ * The earlier version built a union of `allowedFunctions` across the actor's
+ * permitted sources and matched insights against that union. Because
+ * `src_dc_weekly` is cleared for logistics AND operations, a logistics reader
+ * inherited operations' clearance and received an insight citing
+ * `src_traffic`, which logistics may not read. Permission is not transitive
+ * through a shared document.
+ */
+export function visibleInsights<T extends { function: string; citations: { sourceId: string }[] }>(
+  insights: T[],
+  actorFunction: string,
+): T[] {
+  const cleared = new Set(
+    CORPUS.filter((s) => s.allowedFunctions.includes(actorFunction)).map((s) => s.id),
+  );
+  return insights.filter((i) => i.citations.every((c) => cleared.has(c.sourceId)));
+}

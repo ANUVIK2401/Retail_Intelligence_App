@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { MockMailConnector } from "@/core/connectors/mock";
 import { RISK_ORDER, type RiskLevel } from "@/core/contracts";
 import { evaluateDeterministicRisk } from "@/core/risk/rules";
+import { canSeeApproval, readableMessages } from "@/core/access";
+import { visibleInsights } from "@/core/services/insights";
 import { actorFromRequest } from "@/core/session";
 import { getAssessment, listApprovals, listAudit } from "@/core/store";
 import { INSIGHTS } from "@/data/knowledge";
-import { personById } from "@/data/org";
+import { RESTRICTED_ACCESS, personById } from "@/data/org";
 
 const mail = new MockMailConnector();
 
@@ -15,7 +17,10 @@ const mail = new MockMailConnector();
  */
 export async function GET(req: Request) {
   const actor = actorFromRequest(req);
-  const messages = await mail.listMessages("p_ceo");
+  // Filter before anything is derived. Tiles, counts, and "needs attention"
+  // are all message-derived, so an unfiltered read here leaks subjects and
+  // senders regardless of what the inbox route does.
+  const messages = readableMessages(actor, await mail.listMessages("p_ceo"));
 
   const scored = messages.map((m) => {
     const cached = getAssessment(m.id);
@@ -37,7 +42,11 @@ export async function GET(req: Request) {
     };
   });
 
-  const approvals = listApprovals();
+  // Approvals carry the subject of the underlying resource, so they are
+  // scoped by the same access rules rather than by chain membership alone.
+  const approvals = listApprovals().filter((a) =>
+    canSeeApproval(actor, a, { restrictedTopicOwners: RESTRICTED_ACCESS.confidential_strategy }),
+  );
 
   return NextResponse.json({
     actor: { id: actor.id, name: actor.name, title: actor.title, roles: actor.roles },
@@ -51,8 +60,12 @@ export async function GET(req: Request) {
     completedApprovals: approvals.filter(
       (a) => a.status === "completed" || a.status === "approved" || a.status === "rejected",
     ).length,
-    insights: INSIGHTS.slice(0, 2),
-    recentAudit: listAudit(5),
+    insights: visibleInsights(INSIGHTS, actor.function).slice(0, 2),
+    // Auditors see the full trail on the Audit page; the dashboard shows only
+    // this actor's own events so a tile cannot surface someone else's work.
+    recentAudit: listAudit(50)
+      .filter((e) => e.actorId === actor.id || actor.roles.includes("auditor"))
+      .slice(0, 5),
     counts: {
       total: scored.length,
       unassessed: scored.filter((s) => !s.assessed).length,
@@ -60,3 +73,4 @@ export async function GET(req: Request) {
     },
   });
 }
+

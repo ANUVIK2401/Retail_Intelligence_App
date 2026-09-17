@@ -3,6 +3,7 @@ import { MockCalendarConnector, MockMailConnector } from "@/core/connectors/mock
 import type { ApprovalRequest, Person } from "@/core/contracts";
 import { actorFromRequest } from "@/core/session";
 import {
+  claimExecution,
   decideApproval,
   getApproval,
   getProposal,
@@ -75,14 +76,22 @@ export async function POST(
     return NextResponse.json({ error: authz.reason }, { status: 403 });
   }
 
-  const updated = decideApproval({
-    id,
-    actorId: actor.id,
-    actorRole: actor.roles[0] ?? "executive",
-    outcome,
-    note: body.note,
-    editedContent: body.editedContent,
-  });
+  let updated: ApprovalRequest;
+  try {
+    updated = decideApproval({
+      id,
+      actorId: actor.id,
+      actorRole: actor.roles[0] ?? "executive",
+      outcome,
+      note: body.note,
+      editedContent: body.editedContent,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "This request could not be decided." },
+      { status: 409 },
+    );
+  }
 
   const correlationId = nextId("cor");
   recordAudit({
@@ -104,9 +113,9 @@ export async function POST(
         : `${actor.name} recorded: ${outcome}.`,
   });
 
-  /* Execution happens here and only here. */
+  /* Execution happens here and only here, and at most once per approval. */
   let execution: unknown = null;
-  if (updated.status === "approved") {
+  if (updated.status === "approved" && claimExecution(updated.id)) {
     try {
       updated.status = "executing";
       if (updated.subjectType === "email_draft") {

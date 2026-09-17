@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { evaluatePolicy } from "@/core/policy/engine";
-import { answer, RETRIEVAL_VERSION } from "@/core/services/insights";
+import { answer, RETRIEVAL_VERSION, visibleInsights } from "@/core/services/insights";
 import { actorFromRequest } from "@/core/session";
 import { recordAudit, store } from "@/core/store";
 import { CORPUS, INSIGHTS } from "@/data/knowledge";
@@ -29,14 +29,10 @@ export async function GET(req: Request) {
   const permittedSources = CORPUS.filter((s) =>
     s.allowedFunctions.includes(actor.function),
   );
-  const permittedFunctions = new Set(permittedSources.flatMap((s) => s.allowedFunctions));
-
   return NextResponse.json({
     decision,
     sources: permittedSources.map(({ id, label, kind }) => ({ id, label, kind })),
-    insights: INSIGHTS.filter(
-      (i) => permittedFunctions.has(i.function) || actor.function === "executive",
-    ),
+    insights: visibleInsights(INSIGHTS, actor.function),
     excludedCount: CORPUS.length - permittedSources.length,
     retrievalVersion: RETRIEVAL_VERSION,
   });

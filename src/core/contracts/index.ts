@@ -299,6 +299,10 @@ export const ApprovalRequestSchema = z.object({
   /** Index into decision.approvalChain of the pending step. */
   currentStep: z.number().int(),
   status: ApprovalStatusSchema,
+  /** Bumped whenever proposedContent changes. Approvals bind to a version. */
+  contentVersion: z.number().int().default(0),
+  /** Set once, by claimExecution(). Makes execution idempotent. */
+  executionClaimed: z.boolean().default(false),
   requestedFor: z.string(),
   createdAt: z.string(),
   history: z.array(
