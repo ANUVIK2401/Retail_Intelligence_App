@@ -6,7 +6,7 @@ import "./globals.css";
 const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('ecc-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;}catch(e){}})();`;
 
 export const metadata: Metadata = {
-  title: "Executive Command Center",
+  title: "PacSun Executive Command Center",
   description:
     "Mobile-first executive assistant prototype. The AI analyzes and proposes; deterministic policy and human approval control every consequential action.",
   manifest: "/manifest.webmanifest",
@@ -19,7 +19,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#1b4dd8",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#0a4f8f" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1218" },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

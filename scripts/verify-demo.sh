@@ -288,6 +288,34 @@ ck "an unrelated identity cannot propose" '403'                  "$UNREL"
 ck "the refusal names the actor"          'Lena Marsh'           "$UNREL"
 ck "proposals are scoped to the actor"    '"proposals":\[\]'    "$(curl -s "$B/api/meeting-proposals" -H "$(as p_cdio)")"
 
+echo "== Administration: onboarding is admin-only =="
+ADM=$(curl -s -w '\n%{http_code}' "$B/api/admin/members")
+if grep -q '"roles"' <<<"$ADM"; then
+  echo "  PASS  an administrator can list members"; PASS=$((PASS+1));
+  ck "assignable roles are offered"       '"roles":\['               "$ADM"
+  ck "the acting admin is identified"     '"actingAdmin"'            "$ADM"
+  NEW=$(curl -s -X POST "$B/api/admin/members" -H 'content-type: application/json' -H "Origin: $B" -d '{"email":"Onboard.Test@pacsun.com","actorId":"p_cmo"}')
+  ck "a member can be onboarded"          '"origin":"invited"'       "$NEW"
+  ck "the email is normalized"            '"email":"onboard.test@pacsun.com"' "$NEW"
+  ck "the persona is resolved"            '"actorId":"p_cmo"'        "$NEW"
+  ck "onboarding does not grant admin"    '"admin":false'            "$NEW"
+  DUP=$(curl -s -X POST "$B/api/admin/members" -H 'content-type: application/json' -H "Origin: $B" -d '{"email":"onboard.test@pacsun.com","actorId":"p_cfo"}')
+  ck "a silent role change is refused"    'already onboarded'        "$DUP"
+  ck "an unknown persona is refused"      'role that exists'         "$(curl -s -X POST "$B/api/admin/members" -H 'content-type: application/json' -H "Origin: $B" -d '{"email":"x@pacsun.com","actorId":"p_ghost"}')"
+  ck "a malformed email is refused"       'valid email'              "$(curl -s -X POST "$B/api/admin/members" -H 'content-type: application/json' -H "Origin: $B" -d '{"email":"nope","actorId":"p_cmo"}')"
+  ck "self-removal is refused"            'your own administrator'   "$(curl -s -X DELETE "$B/api/admin/members" -H 'content-type: application/json' -H "Origin: $B" -d '{"email":"local-demo@example.test"}')"
+  ck "an onboarded member can be removed" '"removed"'                "$(curl -s -X DELETE "$B/api/admin/members" -H 'content-type: application/json' -H "Origin: $B" -d '{"email":"onboard.test@pacsun.com"}')"
+else
+  echo "  SKIP  administration checks (ADMIN_EMAILS not set for this run)"
+fi
+# A forged member header must be discarded by the proxy, never trusted. The
+# response's actingAdmin proves which identity the server actually used: it is
+# the authenticated member, not the value the client tried to inject.
+FORGED=$(curl -s "$B/api/admin/members" -H 'x-ecc-member-email: attacker@evil.example')
+if grep -q 'attacker@evil.example' <<<"$FORGED"; then
+  echo "  FAIL  a forged member header is discarded"; FAIL=$((FAIL+1));
+else echo "  PASS  a forged member header is discarded"; PASS=$((PASS+1)); fi
+
 echo "== Audit trail =="
 A=$(curl -s "$B/api/audit-events")
 ck "assessments recorded"      'email.assess'                 "$A"

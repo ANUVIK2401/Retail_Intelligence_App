@@ -16,7 +16,12 @@ export const proxy = auth((req) => {
   }
   const testActor = req.cookies.get("ecc_actor")?.value;
   const actorId = localDemo ? (testActor && personById(testActor) ? testActor : "p_ceo") : req.auth?.user?.actorId;
-  const memberEmail = localDemo ? "local-demo" : req.auth?.user?.email?.trim().toLowerCase();
+  // A real address shape, so local demo exercises the same admin and member
+  // code paths as a deployment rather than a special case that hides bugs.
+  // It is only ever used on localhost with AUTH_MODE=demo.
+  const memberEmail = localDemo
+    ? (process.env.DEMO_MEMBER_EMAIL?.trim().toLowerCase() || "local-demo@example.test")
+    : req.auth?.user?.email?.trim().toLowerCase();
   if (!actorId || !memberEmail) {
     if (path.startsWith("/api/")) return NextResponse.json({ error: "Sign in with an authorized Google account." }, { status: 401 });
     return NextResponse.redirect(new URL("/sign-in", req.nextUrl.origin));

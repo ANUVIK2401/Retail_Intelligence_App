@@ -8,7 +8,7 @@ export default function SignInPage() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-6 py-12">
       <div className="card p-8 shadow-xl">
-        <p className="text-xs font-semibold uppercase tracking-widest muted">Northline Retail Group</p>
+        <p className="text-xs font-semibold uppercase tracking-widest muted">PacSun</p>
         <h1 className="mt-3 text-3xl font-semibold">Executive Command Center</h1>
         <p className="mt-3 text-sm muted">A private workspace for authorized executive members. This prototype uses synthetic data only.</p>
         {configured ? (

@@ -116,7 +116,7 @@ Marcus`,
     external: true,
     body: `Maya,
 
-Following our conversation at the conference, my client would like to submit a non-binding indication of interest regarding a potential acquisition of Northline. They are prepared to discuss a take-private structure and would move to due diligence quickly under an exclusivity window.
+Following our conversation at the conference, my client would like to submit a non-binding indication of interest regarding a potential acquisition of the company. They are prepared to discuss a take-private structure and would move to due diligence quickly under an exclusivity window.
 
 This is obviously material non-public information. Please treat accordingly.
 

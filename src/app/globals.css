@@ -1,14 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f6f7f9;
+  --bg: #f4f2ed;
   --surface: #ffffff;
   color-scheme: light;
-  --border: #ced4dd;
-  --text: #16191d;
-  --muted: #646c78;
-  --accent: #1b4dd8;
+  --border: #d5cfc4;
+  --text: #14181c;
+  --muted: #5f6672;
+  /* PacSun Pacific blue. Darkened from the brand tone so body text and small
+     labels clear WCAG AA on the sand background. */
+  --accent: #0a4f8f;
   --on-accent: #ffffff;
+  --brand-sun: #f2a03d;
+  --brand-surf: #0a7ea4;
   --low: #0f7a4d;
   --low-bg: #e8f5ee;
   --medium: #9a6200;
@@ -21,13 +25,16 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0e1116;
-  --surface: #181e27;
-  --border: #414c5e;
-  --text: #f0f3f8;
-  --muted: #afbbcd;
-  --accent: #9bb8ff;
-  --on-accent: #101d38;
+  --bg: #0b1218;
+  --surface: #141d26;
+  --border: #33414f;
+  --text: #eef3f7;
+  --muted: #a9b8c6;
+  /* Lightened for dark surfaces; the light-mode blue fails contrast here. */
+  --accent: #6fc3e8;
+  --on-accent: #06202e;
+  --brand-sun: #ffc477;
+  --brand-surf: #6fc3e8;
   --low: #78e1b0;
   --low-bg: #142e24;
   --medium: #ffd083;
@@ -41,13 +48,16 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]):not([data-theme="dark"]) {
   color-scheme: dark;
-  --bg: #0e1116;
-  --surface: #181e27;
-  --border: #414c5e;
-  --text: #f0f3f8;
-  --muted: #afbbcd;
-  --accent: #9bb8ff;
-  --on-accent: #101d38;
+  --bg: #0b1218;
+  --surface: #141d26;
+  --border: #33414f;
+  --text: #eef3f7;
+  --muted: #a9b8c6;
+  /* Lightened for dark surfaces; the light-mode blue fails contrast here. */
+  --accent: #6fc3e8;
+  --on-accent: #06202e;
+  --brand-sun: #ffc477;
+  --brand-surf: #6fc3e8;
   --low: #78e1b0;
   --low-bg: #142e24;
   --medium: #ffd083;
@@ -364,7 +374,7 @@ nav a:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 }
 .assistant-launcher:hover { filter: brightness(0.93); }
 @media (min-width: 640px) { .assistant-launcher { bottom: 20px; } }
-@media (min-width: 1536px) {
+@media (min-width: 1280px) {
   .assistant-rail {
     position: sticky;
     top: 0;

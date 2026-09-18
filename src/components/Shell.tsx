@@ -48,9 +48,15 @@ const ORGANIZATION_NAV = [
   { href: "/audit", label: "Audit history", icon: AuditIcon },
 ];
 
+/** Shown only to administrators, and the route enforces that independently. */
+const ADMIN_NAV = [{ href: "/admin", label: "Administration", icon: AdminIcon }];
+
 type SessionInfo = {
   actor: { id: string; name: string; title: string };
   member: { name: string; email: string };
+  /** Server-derived. Only controls whether the console link is shown; the
+   *  admin API re-checks it and never trusts the client. */
+  admin?: boolean;
 };
 
 export function Shell({ children }: { children: React.ReactNode }) {
@@ -121,9 +127,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
         style={{ borderColor: "var(--border)", background: "var(--surface)" }}
       >
         <div className="app-brand mb-7 flex items-center gap-3 px-2 pt-2">
-          <div className="app-brand-mark" aria-hidden="true">N</div>
+          <div className="app-brand-mark" aria-hidden="true">PS</div>
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] muted">Northline Retail Group</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] muted">PacSun</p>
             <p className="truncate text-sm font-semibold">Executive Center</p>
           </div>
         </div>
@@ -131,6 +137,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <NavGroup title="Daily work" items={WORK_NAV} pathname={pathname} />
           <NavGroup title="Intelligence" items={INTELLIGENCE_NAV} pathname={pathname} />
           <NavGroup title="People & governance" items={ORGANIZATION_NAV} pathname={pathname} />
+          {session?.admin && (
+            <NavGroup title="Deployment" items={ADMIN_NAV} pathname={pathname} />
+          )}
         </nav>
         <div className="app-sidebar-footer">
           <MemberPanel session={session} />
@@ -147,7 +156,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="truncate text-[11px] font-semibold uppercase tracking-wider muted">
-                Northline Retail Group
+                PacSun
               </p>
               <p className="truncate text-sm font-semibold">
                 {session?.member?.name ?? session?.actor.name ?? "Executive Command Center"}
@@ -334,3 +343,7 @@ function AuditIcon() {
 }
 
 export { SECONDARY as SECONDARY_NAV };
+
+function AdminIcon() {
+  return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l7 3v5c0 4.2-2.8 7.6-7 9-4.2-1.4-7-4.8-7-9V6z" /><path d="M9.5 12.2l1.8 1.8 3.4-3.6" /></svg>;
+}

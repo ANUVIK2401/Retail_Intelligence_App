@@ -8,7 +8,7 @@ export default function OrgChartPage() {
           <p className="org-eyebrow">People & governance</p>
           <h1 className="text-2xl font-semibold tracking-tight">Organization hierarchy</h1>
           <p className="muted mt-2 max-w-2xl text-sm leading-relaxed">
-            See who reports to whom in Northline Retail Group&apos;s synthetic directory.
+            See who reports to whom in PacSun&apos;s synthetic directory.
             Reporting lines do not grant access or approval authority on their own.
           </p>
         </div>

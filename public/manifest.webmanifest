@@ -1,11 +1,11 @@
 {
-  "name": "Executive Command Center",
-  "short_name": "Command Center",
+  "name": "PacSun Executive Command Center",
+  "short_name": "PacSun ECC",
   "description": "Mobile-first executive assistant with organizational controls.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f6f7f9",
-  "theme_color": "#1b4dd8",
+  "background_color": "#f4f2ed",
+  "theme_color": "#0a4f8f",
   "orientation": "portrait-primary",
   "icons": [
     {
