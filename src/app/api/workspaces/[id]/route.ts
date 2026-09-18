@@ -1,3 +1,6 @@
+import { withDemoState } from "@/core/persistence";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { WorkspaceAccessError, read, remove } from "@/core/services/workspace";
 import { actorFromRequest } from "@/core/session";
@@ -24,7 +27,7 @@ function refuse(actorId: string, actorRole: Parameters<typeof recordAudit>[0]["a
   return NextResponse.json({ error: message }, { status: 403 });
 }
 
-export async function GET(req: Request, ctx: Ctx) {
+async function handleGET(req: Request, ctx: Ctx) {
   const actor = actorFromRequest(req);
   const { id } = await ctx.params;
   try {
@@ -37,7 +40,7 @@ export async function GET(req: Request, ctx: Ctx) {
   }
 }
 
-export async function DELETE(req: Request, ctx: Ctx) {
+async function handleDELETE(req: Request, ctx: Ctx) {
   const actor = actorFromRequest(req);
   const { id } = await ctx.params;
   try {
@@ -50,3 +53,6 @@ export async function DELETE(req: Request, ctx: Ctx) {
     throw error;
   }
 }
+
+export const GET = withDemoState(handleGET);
+export const DELETE = withDemoState(handleDELETE);

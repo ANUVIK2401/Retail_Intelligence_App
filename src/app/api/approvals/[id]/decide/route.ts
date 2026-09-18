@@ -1,3 +1,6 @@
+import { withDemoState } from "@/core/persistence";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { MockCalendarConnector, MockMailConnector } from "@/core/connectors/mock";
 import { RISK_ORDER, type ApprovalRequest, type Person } from "@/core/contracts";
@@ -23,7 +26,7 @@ const calendar = new MockCalendarConnector();
  * final step of the chain clears, and the connector is handed the approval id
  * that authorized it.
  */
-export async function POST(
+async function handlePOST(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -259,3 +262,5 @@ function authorize(
 
   return { ok: true };
 }
+
+export const POST = withDemoState(handlePOST);

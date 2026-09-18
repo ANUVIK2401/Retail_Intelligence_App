@@ -1,3 +1,6 @@
+import { withDemoState } from "@/core/persistence";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { MockMailConnector } from "@/core/connectors/mock";
 import { RISK_ORDER, type RiskLevel } from "@/core/contracts";
@@ -15,7 +18,7 @@ const mail = new MockMailConnector();
  * Aggregated view. Reads cached assessments and stored state; it does not
  * re-send mailbox content to a model on every page load.
  */
-export async function GET(req: Request) {
+async function handleGET(req: Request) {
   const actor = actorFromRequest(req);
   // Filter before anything is derived. Tiles, counts, and "needs attention"
   // are all message-derived, so an unfiltered read here leaks subjects and
@@ -74,3 +77,5 @@ export async function GET(req: Request) {
   });
 }
 
+
+export const GET = withDemoState(handleGET);

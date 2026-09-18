@@ -1,3 +1,6 @@
+import { withDemoState } from "@/core/persistence";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { evaluatePolicy } from "@/core/policy/engine";
 import { answer, RETRIEVAL_VERSION, visibleInsights } from "@/core/services/insights";
@@ -22,7 +25,7 @@ function decisionFor(actorId: string, actorRole: Parameters<typeof evaluatePolic
   });
 }
 
-export async function GET(req: Request) {
+async function handleGET(req: Request) {
   const actor = actorFromRequest(req);
   const decision = decisionFor(actor.id, actor.roles[0] ?? "executive");
 
@@ -39,7 +42,7 @@ export async function GET(req: Request) {
 }
 
 /** Ask a question against the approved corpus. Retrieval is permission-first. */
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const actor = actorFromRequest(req);
   const decision = decisionFor(actor.id, actor.roles[0] ?? "executive");
 
@@ -82,3 +85,6 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ decision, ...result });
 }
+
+export const GET = withDemoState(handleGET);
+export const POST = withDemoState(handlePOST);

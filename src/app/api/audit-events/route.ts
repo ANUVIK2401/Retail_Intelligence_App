@@ -1,8 +1,11 @@
+import { withDemoState } from "@/core/persistence";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { listAudit } from "@/core/store";
 import { personById } from "@/data/org";
 
-export async function GET() {
+async function handleGET() {
   return NextResponse.json({
     events: listAudit().map((e) => ({
       ...e,
@@ -10,3 +13,5 @@ export async function GET() {
     })),
   });
 }
+
+export const GET = withDemoState(handleGET);

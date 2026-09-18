@@ -1,18 +1,28 @@
+import { withDemoState } from "@/core/persistence";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { POLICY_RULES, POLICY_VERSION } from "@/core/policy/engine";
 import { actorFromRequest } from "@/core/session";
 import { nextId, recordAudit, store } from "@/core/store";
+import { readProviderConfig } from "@/core/ai/config";
 
-export async function GET() {
+function activeModel() {
+  const config = readProviderConfig();
+  return config.provider === "mock" ? "mock-deterministic-v1" : config.model;
+}
+
+async function handleGET() {
   return NextResponse.json({
     policyVersion: POLICY_VERSION,
     rules: POLICY_RULES.map((r) => ({ ...r, enabled: store.ruleState[r.id] ?? r.enabled })),
     settings: store.settings,
+    activeModel: activeModel(),
   });
 }
 
 /** Administrators toggle rules and demo switches. Every change is audited. */
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const actor = actorFromRequest(req);
   if (!actor.roles.includes("administrator") && !actor.roles.includes("executive")) {
     return NextResponse.json(
@@ -83,5 +93,9 @@ export async function POST(req: Request) {
   return NextResponse.json({
     rules: POLICY_RULES.map((r) => ({ ...r, enabled: store.ruleState[r.id] ?? r.enabled })),
     settings: store.settings,
+    activeModel: activeModel(),
   });
 }
+
+export const GET = withDemoState(handleGET);
+export const POST = withDemoState(handlePOST);

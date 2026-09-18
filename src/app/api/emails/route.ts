@@ -1,3 +1,6 @@
+import { withDemoState } from "@/core/persistence";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { MockMailConnector } from "@/core/connectors/mock";
 import { evaluatePolicy } from "@/core/policy/engine";
@@ -14,7 +17,7 @@ const mail = new MockMailConnector();
  * Restricted messages are filtered at the row level, not hidden in the UI:
  * an unauthorized actor never receives the subject or body over the wire.
  */
-export async function GET(req: Request) {
+async function handleGET(req: Request) {
   const actor = actorFromRequest(req);
   const messages = await mail.listMessages("p_ceo");
 
@@ -64,3 +67,5 @@ export async function GET(req: Request) {
 
   return NextResponse.json({ actor: { id: actor.id, name: actor.name }, messages: rows });
 }
+
+export const GET = withDemoState(handleGET);

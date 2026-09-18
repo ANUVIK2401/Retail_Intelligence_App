@@ -8,6 +8,7 @@ type Payload = {
   policyVersion: string;
   rules: PolicyRule[];
   settings: { simulateCompromisedModel: boolean; provider: string };
+  activeModel: string;
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -91,8 +92,17 @@ export default function ControlsPage() {
           </span>
         </label>
         <p className="muted mt-3 text-xs">
-          Active provider: <span className="font-mono">{data.settings.provider}</span>
+          Active provider: <span className="font-mono">{data.settings.provider}</span> · Model: <span className="font-mono">{data.activeModel}</span>
         </p>
+      </Card>
+
+      <Card title="AI provider configuration">
+        <p className="text-sm leading-relaxed">
+          The assistant and assessments use the server-configured provider. To choose a model,
+          set <span className="font-mono">AI_PROVIDER</span> to <span className="font-mono">openai</span> or <span className="font-mono">anthropic</span>,
+          then set the matching <span className="font-mono">*_API_KEY</span> and <span className="font-mono">*_MODEL</span> in Vercel environment variables.
+        </p>
+        <p className="muted mt-3 text-xs leading-relaxed">Keys are server-only and cannot be entered or viewed here. A key by itself never enables a live model. Use an exact model ID available to your account; invalid or unavailable models fall back to grounded demo answers in the assistant.</p>
       </Card>
 
       {Object.entries(grouped).map(([category, rules]) => (

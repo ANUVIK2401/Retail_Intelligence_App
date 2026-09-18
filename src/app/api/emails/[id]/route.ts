@@ -1,3 +1,6 @@
+import { withDemoState } from "@/core/persistence";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { MockMailConnector } from "@/core/connectors/mock";
 import { evaluatePolicy } from "@/core/policy/engine";
@@ -8,7 +11,7 @@ import { personById } from "@/data/org";
 
 const mail = new MockMailConnector();
 
-export async function GET(
+async function handleGET(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -51,3 +54,5 @@ export async function GET(
     assessment: getAssessment(id) ?? null,
   });
 }
+
+export const GET = withDemoState(handleGET);

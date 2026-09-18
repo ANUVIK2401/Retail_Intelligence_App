@@ -1,3 +1,4 @@
+import { store } from "@/core/store";
 import type {
   CalendarConnector,
   DirectoryConnector,
@@ -28,7 +29,7 @@ export function sanitizeBody(html: string): string {
 
 export class MockMailConnector implements MailConnector {
   readonly kind = "mock";
-  private drafts = new Map<string, { messageId: string; body: string; sentAt?: string }>();
+
 
   async listMessages(mailboxOwnerId: string): Promise<EmailMessage[]> {
     return EMAILS.filter((e) => e.mailboxOwnerId === mailboxOwnerId).map((e) => ({
@@ -50,33 +51,25 @@ export class MockMailConnector implements MailConnector {
     if (!input.approvalId) {
       throw new Error("Refused: a draft cannot be created without an approval id.");
     }
-    const draftId = `dr_${input.messageId}_${this.drafts.size + 1}`;
-    this.drafts.set(draftId, { messageId: input.messageId, body: input.body });
-    return { draftId, externalRef: `AAMkAGI2-DRAFT-${this.drafts.size}` };
+    const draftId = `dr_${input.messageId}_${store.mockDrafts.size + 1}`;
+    store.mockDrafts.set(draftId, { messageId: input.messageId, body: input.body });
+    return { draftId, externalRef: `AAMkAGI2-DRAFT-${store.mockDrafts.size}` };
   }
 
   async sendDraft(input: { draftId: string; approvalId: string }): Promise<{ sentAt: string }> {
     if (!input.approvalId) {
       throw new Error("Refused: a message cannot be sent without an approval id.");
     }
-    const draft = this.drafts.get(input.draftId);
+    const draft = store.mockDrafts.get(input.draftId);
     if (!draft) throw new Error("Unknown draft.");
     const sentAt = new Date().toISOString();
-    draft.sentAt = sentAt;
+    store.mockDrafts.set(input.draftId, { ...draft, sentAt });
     return { sentAt };
   }
 }
 
 export class MockCalendarConnector implements CalendarConnector {
   readonly kind = "mock";
-  private events: {
-    eventId: string;
-    ownerId: string;
-    start: string;
-    end: string;
-    subject: string;
-  }[] = [];
-
   async getSchedule(input: {
     personIds: string[];
     from: string;
@@ -103,8 +96,8 @@ export class MockCalendarConnector implements CalendarConnector {
     if (!input.approvalId) {
       throw new Error("Refused: an event cannot be created without an approval id.");
     }
-    const eventId = `ev_${this.events.length + 1}`;
-    this.events.push({
+    const eventId = `ev_${store.mockEvents.size + 1}`;
+    store.mockEvents.set(eventId, {
       eventId,
       ownerId: input.ownerId,
       start: input.start,

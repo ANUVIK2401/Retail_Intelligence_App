@@ -67,6 +67,7 @@ export class MockProvider implements AIProvider {
   }
 
   async draft(req: DraftRequest): Promise<Draft> {
+    if (req.subject === "Brainstorming thread") return workspaceDraft(req.body);
     return {
       body: [
         `Thanks for sending this through.`,
@@ -137,3 +138,49 @@ function extractEntities(text: string): Classification["entities"] {
 function dedupe(xs: string[]): string[] {
   return [...new Set(xs)];
 }
+
+/** Topic matching selects authored advice; untrusted text is never copied into a reply. */
+function workspaceDraft(history: string): Draft {
+  const turns = history.split(/\n(?=executive:|assistant:)/)
+    .filter(turn => /^(?:<untrusted[^>]*>\s*)?executive:/i.test(turn.trim()));
+  const context = turns.length ? [...turns].reverse() : [history];
+  const topic = context.map(turn => WORKSPACE_ANGLES.find(angle => angle.match.test(turn)))
+    .find(Boolean) ?? DEFAULT_ANGLE;
+  return {
+    body: `Offline mock — illustrative thinking partner.\n\nAngle: ${topic.angle}\n\nRisk: ${topic.risk}\n\nNext step: ${topic.next}`,
+    tone: "direct, exploratory",
+    caveats: ["Deterministic topic-based suggestions, not a live model assessment. No action has been taken."],
+  };
+}
+
+const DEFAULT_ANGLE = {
+  angle: "Frame the idea as a decision: what outcome should change, for whom, and by when? Compare a small pilot with keeping the current approach.",
+  risk: "The weakest point is an untested assumption. Separate what you know from what needs evidence before committing resources.",
+  next: "Write one success measure, one constraint, and one question for the person closest to the work. What evidence would change your mind?",
+};
+const WORKSPACE_ANGLES = [
+  {
+    match: /\b(store|stores|retail|staffing|inventory|customer|customers|hours)\b/i,
+    angle: "Test the retail idea in a small group of comparable stores and retain a comparison group. Track customer experience alongside sales.",
+    risk: "A sales lift can hide added staffing costs, stockouts, or service pressure. Seasonality can also make a weak pilot look successful.",
+    next: "Choose a store owner, establish a baseline, and draft a time-limited pilot with a cost cap and a stop condition for human review.",
+  },
+  {
+    match: /\b(budget|cost|costs|margin|margins|finance|savings|spend)\b/i,
+    angle: "Separate recurring savings from one-time cuts and compare the operational effect of each option.",
+    risk: "Reducing costs can shift work elsewhere or erode service. A headline savings estimate needs a baseline and an accountable owner.",
+    next: "Ask finance for a baseline, list three reversible options, and estimate each option's cost, savings, and service impact before requesting approval.",
+  },
+  {
+    match: /\b(team|teams|hiring|people|employee|employees|training)\b/i,
+    angle: "Start with the team's capacity and the specific behavior or skill the proposal should improve.",
+    risk: "A new initiative may add workload without removing anything. Participation alone will not demonstrate an improvement.",
+    next: "Ask two team leads where work stalls, then propose one small change with an owner and an observable success measure.",
+  },
+  {
+    match: /\b(launch|marketing|campaign|brand|communications|announcement)\b/i,
+    angle: "Define the audience and the single message they should remember, then compare a limited launch with a broader rollout.",
+    risk: "Unverified claims or premature promises can create reputational exposure. Audience response is an assumption until tested.",
+    next: "Draft a short brief with audience, evidence, channel, and success measure; route it for the appropriate human review before publication.",
+  },
+];

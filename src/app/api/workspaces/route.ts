@@ -1,15 +1,18 @@
+import { withDemoState } from "@/core/persistence";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { create, listForActor } from "@/core/services/workspace";
 import { actorFromRequest } from "@/core/session";
 import { recordAudit } from "@/core/store";
 
 /** Workspaces are listed for the acting identity only. */
-export async function GET(req: Request) {
+async function handleGET(req: Request) {
   const actor = actorFromRequest(req);
   return NextResponse.json({ workspaces: listForActor(actor.id) });
 }
 
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const actor = actorFromRequest(req);
 
   let title = "Untitled workspace";
@@ -42,3 +45,6 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ workspace: ws }, { status: 201 });
 }
+
+export const GET = withDemoState(handleGET);
+export const POST = withDemoState(handlePOST);

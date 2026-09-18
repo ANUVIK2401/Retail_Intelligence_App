@@ -1,3 +1,6 @@
+import { withDemoState } from "@/core/persistence";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { evaluatePolicy } from "@/core/policy/engine";
 import { exportForHuman, review } from "@/core/services/publishing";
@@ -10,7 +13,7 @@ import { PEOPLE } from "@/data/org";
  * review chain. The route has no publish branch, because the service it calls
  * has no publish function.
  */
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const actor = actorFromRequest(req);
 
   let body = "";
@@ -170,3 +173,5 @@ function titleHash(t: string): string {
   for (let i = 0; i < t.length; i += 1) h = (Math.imul(h, 31) + t.charCodeAt(i)) | 0;
   return Math.abs(h).toString(36).slice(0, 8);
 }
+
+export const POST = withDemoState(handlePOST);

@@ -2,13 +2,30 @@
 # Exercises the four demo scenarios plus the adversarial cases against a live server.
 set -uo pipefail
 PORT=${PORT:-3000}
-B=http://localhost:${PORT:-3000}
+B=${BASE_URL:-http://localhost:${PORT:-3000}}
+B=${B%/}
+COOKIE_JAR=$(mktemp)
+CURL_CONFIG=$(mktemp)
+chmod 600 "$COOKIE_JAR" "$CURL_CONFIG"
+trap 'rm -f "$COOKIE_JAR" "$CURL_CONFIG"' EXIT
+if [ -n "${DEMO_ACCESS_PASSWORD:-}" ]; then
+  AUTH=$(python3 -c 'import os,base64; print(base64.b64encode(("demo:"+os.environ["DEMO_ACCESS_PASSWORD"]).encode()).decode())')
+  printf 'header = "Authorization: Basic %s"\n' "$AUTH" > "$CURL_CONFIG"
+fi
+curl() { command curl --config "$CURL_CONFIG" --cookie "$COOKIE_JAR" --cookie-jar "$COOKIE_JAR" --connect-timeout 10 --max-time 65 "$@"; }
+BOOT=$(curl -s -o /dev/null -w '%{http_code}' "$B/api/session")
+if [ "$BOOT" != 200 ]; then
+  echo "Cannot start demo session (HTTP $BOOT). Check BASE_URL, DEMO_ACCESS_PASSWORD, and deployment readiness." >&2
+  exit 1
+fi
+DEMO_SESSION=$(awk '$6 == "ecc_demo_session" { print $7 }' "$COOKIE_JAR")
+if [ -z "$DEMO_SESSION" ]; then echo "No demo session cookie received." >&2; exit 1; fi
 PASS=0; FAIL=0
 ck() { # ck <label> <expected-substring> <actual>
   if grep -q -- "$2" <<<"$3"; then echo "  PASS  $1"; PASS=$((PASS+1));
   else echo "  FAIL  $1"; echo "        expected to contain: $2"; echo "        got: ${3:0:400}"; FAIL=$((FAIL+1)); fi
 }
-as() { printf 'Cookie: ecc_actor=%s' "$1"; }
+as() { printf 'Cookie: ecc_actor=%s; ecc_demo_session=%s' "$1" "$DEMO_SESSION"; }
 
 echo "== Scenario 1: routine financial approval (medium) =="
 R=$(curl -s -X POST "$B/api/emails/e_approval/assess" -H "$(as p_ceo)")

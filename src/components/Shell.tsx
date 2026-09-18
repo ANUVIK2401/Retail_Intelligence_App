@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { ThemeSelector } from "./ThemeSelector";
+import { AssistantPanel } from "./AssistantPanel";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { signOut } from "next-auth/react";
 
 /**
  * Responsive shell. One set of routes, two layouts:
@@ -26,60 +29,116 @@ const SECONDARY = [
   { href: "/audit", label: "Audit history" },
 ];
 
+const WORK_NAV = [
+  { href: "/", label: "Overview", icon: HomeIcon },
+  { href: "/inbox", label: "Inbox", icon: InboxIcon },
+  { href: "/schedule", label: "Schedule", icon: CalendarIcon },
+  { href: "/approvals", label: "Approvals", icon: CheckIcon },
+];
+
+const INTELLIGENCE_NAV = [
+  { href: "/insights", label: "Insights", icon: SparkIcon },
+  { href: "/workspace", label: "Workspace", icon: WorkspaceIcon },
+  { href: "/publish", label: "Publish", icon: PublishIcon },
+];
+
+const ORGANIZATION_NAV = [
+  { href: "/org-chart", label: "Org hierarchy", icon: OrgIcon },
+  { href: "/controls", label: "Controls", icon: ControlsIcon },
+  { href: "/audit", label: "Audit history", icon: AuditIcon },
+];
+
 type SessionInfo = {
   actor: { id: string; name: string; title: string };
-  options: { id: string; name: string; title: string; roles: string[] }[];
+  member: { name: string; email: string };
 };
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [session, setSession] = useState<SessionInfo | null>(null);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const assistantCloseRef = useRef<HTMLButtonElement>(null);
+  const assistantRailRef = useRef<HTMLElement>(null);
+  const assistantLauncherRef = useRef<HTMLButtonElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  function closeAssistant() {
+    setAssistantOpen(false);
+    requestAnimationFrame(() => assistantLauncherRef.current?.focus());
+  }
+
+  useEffect(() => setAssistantOpen(false), [pathname]);
+  useEffect(() => {
+    if (!assistantOpen) return;
+    assistantCloseRef.current?.focus();
+    const sidebar = sidebarRef.current;
+    const content = contentRef.current;
+    if (sidebar) sidebar.inert = true;
+    if (content) content.inert = true;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeAssistant();
+      if (event.key !== "Tab") return;
+      const focusable = [...(assistantRailRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ) ?? [])].filter((element) => element.offsetParent !== null);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      if (sidebar) sidebar.inert = false;
+      if (content) content.inert = false;
+    };
+  }, [assistantOpen]);
 
   useEffect(() => {
+    if (pathname === "/sign-in") return;
     fetch("/api/session")
-      .then((r) => r.json())
-      .then(setSession)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => setSession(data?.actor ? data : null))
       .catch(() => setSession(null));
   }, [pathname]);
 
-  async function switchActor(actorId: string) {
-    await fetch("/api/session", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ actorId }),
-    });
-    router.refresh();
-    window.location.reload();
-  }
+  if (pathname === "/sign-in") return <>{children}</>;
 
   return (
-    <div className="min-h-dvh sm:flex">
+    <div className="app-frame min-h-dvh sm:flex">
+      <a className="skip-link btn" href="#main-content">Skip to content</a>
       {/* Laptop sidebar */}
       <aside
-        className="hidden w-60 shrink-0 border-r p-4 sm:block"
+        ref={sidebarRef}
+        className="app-sidebar hidden w-64 shrink-0 border-r p-4 sm:flex sm:flex-col"
         style={{ borderColor: "var(--border)", background: "var(--surface)" }}
       >
-        <div className="mb-6">
-          <p className="text-[11px] font-semibold uppercase tracking-wider muted">
-            Northline Retail Group
-          </p>
-          <p className="text-sm font-semibold">Executive Command Center</p>
+        <div className="app-brand mb-7 flex items-center gap-3 px-2 pt-2">
+          <div className="app-brand-mark" aria-hidden="true">N</div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] muted">Northline Retail Group</p>
+            <p className="truncate text-sm font-semibold">Executive Center</p>
+          </div>
         </div>
-        <nav className="space-y-1">
-          {[...PRIMARY.filter((p) => p.href !== "/more"), ...SECONDARY].map((item) => (
-            <NavLink
-              key={item.href}
-              href={item.href}
-              label={item.label}
-              active={isActive(pathname, item.href)}
-            />
-          ))}
+        <nav aria-label="Main navigation" className="app-nav flex-1 space-y-5">
+          <NavGroup title="Daily work" items={WORK_NAV} pathname={pathname} />
+          <NavGroup title="Intelligence" items={INTELLIGENCE_NAV} pathname={pathname} />
+          <NavGroup title="People & governance" items={ORGANIZATION_NAV} pathname={pathname} />
         </nav>
-        <ActorSwitcher session={session} onSwitch={switchActor} />
+        <div className="app-sidebar-footer">
+          <MemberPanel session={session} />
+          <div className="mt-3 px-2"><ThemeSelector /></div>
+        </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div ref={contentRef} className="flex min-w-0 flex-1 flex-col">
         {/* Phone header */}
         <header
           className="sticky top-0 z-20 border-b px-4 py-3 sm:hidden"
@@ -91,32 +150,31 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 Northline Retail Group
               </p>
               <p className="truncate text-sm font-semibold">
-                {session?.actor.name ?? "Executive Command Center"}
+                {session?.member?.name ?? session?.actor.name ?? "Executive Command Center"}
               </p>
             </div>
-            <select
-              aria-label="Acting as"
-              className="tap rounded-lg border px-2 text-xs"
-              style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--text)" }}
-              value={session?.actor.id ?? ""}
-              onChange={(e) => switchActor(e.target.value)}
-            >
-              {session?.options.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
+            <Link href="/org-chart" className="mobile-org-link tap" aria-current={isActive(pathname, "/org-chart") ? "page" : undefined}>Org chart</Link>
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-4xl flex-1 px-4 pb-28 pt-4 sm:px-6 sm:pb-10">
+        <div className="border-b px-4 py-3 sm:px-6" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+          <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-xs font-semibold">Prototype — synthetic data only</p>
+              <p className="muted mt-1 text-xs">Demo data is synthetic. Do not enter confidential information.</p>
+            </div>
+            <div className="flex items-center gap-2 sm:hidden"><ThemeSelector /><button type="button" onClick={() => signOut({ callbackUrl: "/sign-in" })} className="mobile-signout tap">Sign out</button></div>
+          </div>
+        </div>
+
+        <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-4xl flex-1 px-4 pb-28 pt-4 sm:px-6 sm:pb-10">
           {children}
         </main>
 
         {/* Phone bottom navigation */}
         <nav
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t sm:hidden"
+          aria-label="Main navigation"
+          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t pb-[env(safe-area-inset-bottom)] sm:hidden"
           style={{ borderColor: "var(--border)", background: "var(--surface)" }}
         >
           {PRIMARY.map((item) => {
@@ -137,39 +195,50 @@ export function Shell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
       </div>
+
+      {assistantOpen && <button type="button" className="assistant-backdrop" aria-label="Close assistant" onClick={closeAssistant} />}
+      <aside ref={assistantRailRef} className={`assistant-rail ${assistantOpen ? "assistant-rail-open" : ""}`} aria-label="Executive assistant">
+        <div className="assistant-rail-mobile-head">
+          <span className="text-sm font-semibold">Executive assistant</span>
+          <button ref={assistantCloseRef} type="button" className="tap assistant-close" aria-label="Close assistant" onClick={closeAssistant}>×</button>
+        </div>
+        <AssistantPanel />
+      </aside>
+      <button
+        ref={assistantLauncherRef}
+        type="button"
+        className="assistant-launcher tap"
+        aria-label="Open executive assistant"
+        aria-expanded={assistantOpen}
+        onClick={() => setAssistantOpen(true)}
+      >
+        <SparkIcon /><span>Ask assistant</span>
+      </button>
     </div>
   );
 }
 
-function ActorSwitcher({
-  session,
-  onSwitch,
-}: {
-  session: SessionInfo | null;
-  onSwitch: (id: string) => void;
-}) {
+function MemberPanel({ session }: { session: SessionInfo | null }) {
   if (!session) return null;
   return (
-    <div className="mt-8 border-t pt-4" style={{ borderColor: "var(--border)" }}>
-      <label className="text-[11px] font-semibold uppercase tracking-wider muted">
-        Acting as
-      </label>
-      <select
-        className="tap mt-2 w-full rounded-lg border px-2 text-sm"
-        style={{ borderColor: "var(--border)", background: "var(--surface)", color: "var(--text)" }}
-        value={session.actor.id}
-        onChange={(e) => onSwitch(e.target.value)}
-      >
-        {session.options.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.name} — {o.title}
-          </option>
-        ))}
-      </select>
-      <p className="muted mt-2 text-[11px] leading-snug">
-        Stands in for Microsoft Entra sign-in. Switching identity changes what the
-        policy engine permits.
-      </p>
+    <div className="member-panel">
+      <div className="member-avatar" aria-hidden="true">{session.member?.name?.split(" ").map((part) => part[0]).slice(0, 2).join("") || "M"}</div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold">{session.member?.name ?? session.actor.name}</p>
+        <p className="muted truncate text-xs">{session.actor.title}</p>
+      </div>
+      <button type="button" onClick={() => signOut({ callbackUrl: "/sign-in" })} className="member-signout tap" title="Sign out" aria-label="Sign out">↗</button>
+    </div>
+  );
+}
+
+function NavGroup({ title, items, pathname }: { title: string; items: { href: string; label: string; icon: () => React.JSX.Element }[]; pathname: string }) {
+  return (
+    <div>
+      <p className="app-nav-label">{title}</p>
+      <div className="space-y-0.5">
+        {items.map((item) => <NavLink key={item.href} href={item.href} label={item.label} icon={item.icon} active={isActive(pathname, item.href)} />)}
+      </div>
     </div>
   );
 }
@@ -177,23 +246,25 @@ function ActorSwitcher({
 function NavLink({
   href,
   label,
+  icon: Icon,
   active,
 }: {
   href: string;
   label: string;
+  icon: () => React.JSX.Element;
   active: boolean;
 }) {
   return (
     <Link
       href={href}
-      className="tap flex items-center rounded-lg px-3 text-sm font-medium"
+      className="app-nav-link tap flex items-center gap-3 rounded-xl px-3 text-sm font-medium"
       style={{
         background: active ? "color-mix(in srgb, var(--accent) 12%, transparent)" : "transparent",
         color: active ? "var(--accent)" : "var(--text)",
       }}
       aria-current={active ? "page" : undefined}
     >
-      {label}
+      <Icon />{label}
     </Link>
   );
 }
@@ -242,6 +313,24 @@ function MoreIcon() {
       <circle cx="19" cy="12" r="1.6" />
     </svg>
   );
+}
+function SparkIcon() {
+  return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="m12 2 2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" /></svg>;
+}
+function WorkspaceIcon() {
+  return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M8 4v16M11 9h7M11 13h5" /></svg>;
+}
+function PublishIcon() {
+  return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M12 16V3m0 0L8 7m4-4 4 4M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" /></svg>;
+}
+function OrgIcon() {
+  return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><rect x="9" y="2" width="6" height="5" rx="1" /><rect x="2" y="17" width="6" height="5" rx="1" /><rect x="16" y="17" width="6" height="5" rx="1" /><path d="M12 7v5M5 17v-5h14v5" /></svg>;
+}
+function ControlsIcon() {
+  return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M4 7h16M4 17h16" /><circle cx="9" cy="7" r="2" fill="var(--surface)" /><circle cx="16" cy="17" r="2" fill="var(--surface)" /></svg>;
+}
+function AuditIcon() {
+  return <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M7 3h10l4 4v14H3V3h4zm10 0v5h4M7 12h10M7 16h7" /></svg>;
 }
 
 export { SECONDARY as SECONDARY_NAV };

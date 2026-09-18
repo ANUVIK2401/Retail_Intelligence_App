@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import type {
   ApprovalRequest,
   AuditEvent,
@@ -11,16 +12,7 @@ import type {
 } from "@/core/contracts";
 import { POLICY_RULES } from "@/core/policy/engine";
 
-/**
- * In-memory store.
- *
- * Deliberate choice for the prototype: no database, so the demo starts from a
- * known state every time and there is no executive data at rest anywhere.
- * The repository functions below are the seam — swapping them for SQLAlchemy
- * or Prisma is a change to this file only.
- */
-
-type State = {
+export type State = {
   assessments: Map<string, EmailAssessment>;
   approvals: Map<string, ApprovalRequest>;
   proposals: Map<string, MeetingProposal>;
@@ -37,12 +29,15 @@ type State = {
     /** Simulate a model that has been manipulated into reporting everything safe. */
     simulateCompromisedModel: boolean;
     /** Which provider the gateway resolves to. */
-    provider: "mock" | "anthropic";
+    provider: "mock" | "anthropic" | "openai";
   };
+  mockDrafts: Map<string, { messageId: string; body: string; sentAt?: string }>;
+  mockEvents: Map<string, { eventId: string; ownerId: string; start: string; end: string; subject: string }>;
+  assistantRequests: number;
   seq: number;
 };
 
-function freshState(): State {
+export function freshState(): State {
   return {
     assessments: new Map(),
     approvals: new Map(),
@@ -55,14 +50,29 @@ function freshState(): State {
     ruleState: Object.fromEntries(POLICY_RULES.map((r) => [r.id, r.enabled])),
     settings: {
       simulateCompromisedModel: false,
-      provider: process.env.ANTHROPIC_API_KEY ? "anthropic" : "mock",
+      provider: process.env.AI_PROVIDER === "anthropic" ? "anthropic" : process.env.AI_PROVIDER === "openai" ? "openai" : "mock",
     },
+    mockDrafts: new Map(),
+    mockEvents: new Map(),
+    assistantRequests: 0,
     seq: 0,
   };
 }
 
-const globalRef = globalThis as unknown as { __ecc_state?: State };
-export const store: State = (globalRef.__ecc_state ??= freshState());
+export const stateContext = new AsyncLocalStorage<State>();
+let localState = freshState();
+function currentState(): State {
+  const state = stateContext.getStore();
+  if (state) return state;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Demo state must be accessed inside a session transaction.");
+  }
+  return localState;
+}
+export const store: State = new Proxy({} as State, {
+  get: (_target, key) => Reflect.get(currentState(), key),
+  set: (_target, key, value) => Reflect.set(currentState(), key, value),
+});
 
 export function nextId(prefix: string): string {
   store.seq += 1;
@@ -70,8 +80,9 @@ export function nextId(prefix: string): string {
 }
 
 export function resetStore(): void {
-  globalRef.__ecc_state = freshState();
-  Object.assign(store, globalRef.__ecc_state);
+  const active = stateContext.getStore();
+  if (active) Object.assign(active, freshState());
+  else localState = freshState();
 }
 
 /* ------------------------------------------------------------------ */

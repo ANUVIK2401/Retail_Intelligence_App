@@ -1,8 +1,11 @@
+import { withDemoState } from "@/core/persistence";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { AccessDeniedError, assessEmail } from "@/core/services/assess";
 import { actorFromRequest } from "@/core/session";
 
-export async function POST(
+async function handlePOST(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -22,3 +25,5 @@ export async function POST(
     );
   }
 }
+
+export const POST = withDemoState(handlePOST);

@@ -1,3 +1,6 @@
+import { withDemoState } from "@/core/persistence";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { MeetingRequestSchema } from "@/core/contracts";
 import { proposeMeeting } from "@/core/services/scheduling";
@@ -6,7 +9,7 @@ import { listProposals } from "@/core/store";
 import { DELEGATIONS } from "@/data/org";
 
 /** Proposals are scoped to the requester, the attendees, and auditors. */
-export async function GET(req: Request) {
+async function handleGET(req: Request) {
   const actor = actorFromRequest(req);
   const proposals = listProposals().filter(
     (p) =>
@@ -20,7 +23,7 @@ export async function GET(req: Request) {
   return NextResponse.json({ proposals });
 }
 
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const actor = actorFromRequest(req);
   const parsed = MeetingRequestSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
@@ -68,3 +71,6 @@ export async function POST(req: Request) {
     );
   }
 }
+
+export const GET = withDemoState(handleGET);
+export const POST = withDemoState(handlePOST);

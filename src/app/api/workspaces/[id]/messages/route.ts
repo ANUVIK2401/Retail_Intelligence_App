@@ -1,10 +1,13 @@
+import { withDemoState } from "@/core/persistence";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { WorkspaceAccessError, send } from "@/core/services/workspace";
 import { actorFromRequest } from "@/core/session";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function POST(req: Request, ctx: Ctx) {
+async function handlePOST(req: Request, ctx: Ctx) {
   const actor = actorFromRequest(req);
   const { id } = await ctx.params;
 
@@ -31,3 +34,5 @@ export async function POST(req: Request, ctx: Ctx) {
     throw error;
   }
 }
+
+export const POST = withDemoState(handlePOST);
