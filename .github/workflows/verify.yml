@@ -1,0 +1,93 @@
+name: verify
+
+# Runs on every push to main and every pull request, so a change that breaks
+# a security invariant is caught before it reaches a deployment rather than by
+# someone clicking around in the demo.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Start the server
+        # `next dev` rather than `next start`: the demo identities that
+        # verify-demo.sh drives are deliberately unavailable when NODE_ENV is
+        # production, because demo auth must never be reachable on a real
+        # deployment. The production auth path is checked instead by
+        # scripts/verify-deploy.sh against a deployed URL.
+        run: |
+          AUTH_MODE=demo \
+          STORE_BACKEND=memory \
+          ADMIN_EMAILS=local-demo@example.test \
+          npm run dev > /tmp/server.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:3000/api/health > /dev/null && exit 0
+            sleep 1
+          done
+          echo "server did not start"; cat /tmp/server.log; exit 1
+
+      - name: Demo and security checks
+        run: bash scripts/verify-demo.sh
+
+      - name: Production build refuses demo auth
+        # The guard that makes the step above safe: with NODE_ENV=production
+        # the demo bypass must be gone, so an unauthenticated request is
+        # refused even though AUTH_MODE=demo is set.
+        run: |
+          pkill -f "next dev" || true
+          sleep 2
+          AUTH_MODE=demo \
+          AUTH_GOOGLE_ID=ci-test-id \
+          AUTH_GOOGLE_SECRET=ci-test-secret \
+          AUTH_SECRET=0123456789012345678901234567890123456789 \
+          EXECUTIVE_MEMBER_MAP=ci@example.test:p_ceo \
+          ADMIN_EMAILS=ci@example.test \
+          npm run start > /tmp/prod.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -s -o /dev/null http://127.0.0.1:3000/sign-in && break
+            sleep 1
+          done
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/dashboard)
+          if [ "$CODE" != "401" ]; then
+            echo "::error::A production build served /api/dashboard with $CODE to an anonymous caller; expected 401."
+            cat /tmp/prod.log
+            exit 1
+          fi
+          echo "Production build refused anonymous access (401)."
+
+      - name: Evaluation harness
+        # Regenerates docs/EVALUATION.md and fails if the fused configuration
+        # lets a genuinely high-risk message through.
+        run: |
+          OUT=$(npm run --silent evaluate)
+          echo "$OUT"
+          grep -q 'fused false-safe rate: 0.0%' <<<"$OUT" || {
+            echo "::error::The fused configuration has false-safes."; exit 1; }
+
+      - name: Server log on failure
+        if: failure()
+        run: cat /tmp/server.log || true

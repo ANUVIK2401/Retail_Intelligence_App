@@ -31,6 +31,10 @@ AI_PROVIDER=anthropic ANTHROPIC_API_KEY=... ANTHROPIC_MODEL=... npm run dev
 
 ## Vercel demo deployment
 
+Step-by-step runbook: **[docs/DEPLOY.md](docs/DEPLOY.md)**. After deploying,
+check the live URL with `bash scripts/verify-deploy.sh https://your-app.vercel.app`.
+
+
 The Vercel deployment requires a pooled Postgres `DATABASE_URL`, Google OAuth
 web-client credentials (`AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`), a random
 32-character-or-longer `AUTH_SECRET`, and `EXECUTIVE_MEMBER_MAP` (for example,
