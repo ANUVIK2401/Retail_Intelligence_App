@@ -115,10 +115,11 @@ export default function WorkspacePage() {
   if (!workspace) return <p className="muted py-10 text-center text-sm">Loading…</p>;
 
   return (
-    <div className="space-y-4">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Workspace</h1>
-        <p className="muted text-sm">
+    <div className="space-y-5">
+      <header className="page-head enter">
+        <p className="page-eyebrow">Intelligence</p>
+        <h1 className="t-title mt-2">Workspace</h1>
+        <p className="muted t-body mt-2 max-w-prose">
           Private to you. Attached documents and saved conclusions stay inside this
           project.
         </p>
@@ -224,7 +225,7 @@ export default function WorkspacePage() {
 
       <Card title="Memory">
         {memory.length === 0 ? (
-          <p className="muted text-sm">
+          <p className="muted t-body mt-2 max-w-prose">
             Nothing saved. The thread stays in conversation state, which is never
             persisted, until you save something into one of the lasting categories.
           </p>

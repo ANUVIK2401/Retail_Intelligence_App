@@ -98,9 +98,10 @@ export default function AdminPage() {
 
   if (denied) {
     return (
-      <div className="space-y-4">
-        <header>
-          <h1 className="text-xl font-semibold tracking-tight">Administration</h1>
+      <div className="space-y-5">
+        <header className="page-head enter">
+          <p className="page-eyebrow">Deployment</p>
+          <h1 className="t-title mt-2">Administration</h1>
         </header>
         <Card title="Not available to this account">
           <p className="text-[13px] leading-relaxed">{denied}</p>
@@ -116,10 +117,11 @@ export default function AdminPage() {
   if (!data) return <p className="muted py-10 text-center text-sm">Loading…</p>;
 
   return (
-    <div className="space-y-4">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Administration</h1>
-        <p className="muted text-sm">
+    <div className="space-y-5">
+      <header className="page-head enter">
+        <p className="page-eyebrow">Deployment</p>
+        <h1 className="t-title mt-2">Administration</h1>
+        <p className="muted t-body mt-2 max-w-prose">
           Onboard people and assign the role they act as. The policy engine decides what
           each role may do — this page never grants a permission directly.
         </p>

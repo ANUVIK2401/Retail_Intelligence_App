@@ -42,10 +42,11 @@ export default function InboxPage() {
   if (!rows) return <p className="muted py-10 text-center text-sm">Loading…</p>;
 
   return (
-    <div className="space-y-4">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Inbox</h1>
-        <p className="muted text-sm">
+    <div className="space-y-5">
+      <header className="page-head enter">
+        <p className="page-eyebrow">Daily work</p>
+        <h1 className="t-title mt-2">Inbox</h1>
+        <p className="muted t-body mt-2 max-w-prose">
           CEO mailbox. Rows the acting identity may not see are withheld at the API,
           not hidden in the interface.
         </p>
@@ -61,7 +62,7 @@ export default function InboxPage() {
                 <Card className="opacity-80">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="badge badge-restricted">Withheld</span>
-                    <span className="muted text-xs">{relativeTime(row.receivedAt)}</span>
+                    <span className="muted t-caption tnum">{relativeTime(row.receivedAt)}</span>
                   </div>
                   <p className="mt-2 text-sm leading-snug">{row.reason}</p>
                 </Card>
@@ -70,8 +71,7 @@ export default function InboxPage() {
               <li key={row.id}>
                 <Link
                   href={`/inbox/${row.id}`}
-                  className="tap block rounded-xl border p-3 sm:p-4"
-                  style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+                  className="tap row-item card-row"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <RiskBadge level={row.assessedRisk ?? row.riskFloor} />
@@ -80,9 +80,9 @@ export default function InboxPage() {
                       <span className="badge badge-high">Instruction attempt</span>
                     )}
                     {!row.assessed && <span className="muted text-[11px]">not yet assessed</span>}
-                    <span className="muted ml-auto text-xs">{relativeTime(row.receivedAt)}</span>
+                    <span className="muted t-caption tnum ml-auto">{relativeTime(row.receivedAt)}</span>
                   </div>
-                  <p className="mt-2 text-sm font-semibold leading-snug">{row.subject}</p>
+                  <p className="t-body mt-2 font-semibold leading-snug">{row.subject}</p>
                   <p className="muted text-xs">
                     {row.from}
                     {row.fromTitle ? ` · ${row.fromTitle}` : ""}

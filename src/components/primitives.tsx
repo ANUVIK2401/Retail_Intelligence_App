@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { RiskLevel } from "@/core/contracts";
 
 export function RiskBadge({ level }: { level: RiskLevel }) {
@@ -30,18 +30,21 @@ export function Card({
   action,
   children,
   className = "",
+  style,
 }: {
   title?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
+  /** Carries the `--i` stagger index for entrance motion. */
+  style?: CSSProperties;
 }) {
   return (
-    <section className={`card p-4 sm:p-5 ${className}`}>
+    <section className={`card p-4 sm:p-5 ${className}`} style={style}>
       {(title || action) && (
-        <header className="mb-3 flex items-start justify-between gap-3">
+        <header className="card-head">
           {typeof title === "string" ? (
-            <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
+            <h2 className="t-section">{title}</h2>
           ) : (
             title
           )}
@@ -54,18 +57,22 @@ export function Card({
 }
 
 export function Reason({ children }: { children: ReactNode }) {
-  return (
-    <p
-      className="mt-2 rounded-lg px-3 py-2 text-[13px] leading-relaxed"
-      style={{ background: "color-mix(in srgb, var(--border) 35%, transparent)" }}
-    >
-      {children}
-    </p>
-  );
+  // The reason is written for an executive to read, so it is set as an aside
+  // with a rule, not as a grey code-style slab.
+  return <p className="reason t-caption">{children}</p>;
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <p className="muted py-6 text-center text-sm">{children}</p>;
+  return (
+    <div className="empty-state">
+      <span className="empty-mark" aria-hidden="true">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
+      </span>
+      <p className="muted t-caption">{children}</p>
+    </div>
+  );
 }
 
 export function relativeTime(iso: string): string {

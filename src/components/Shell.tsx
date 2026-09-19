@@ -143,7 +143,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="app-sidebar-footer">
           <MemberPanel session={session} />
-          <div className="mt-3 px-2"><ThemeSelector /></div>
         </div>
       </aside>
 
@@ -161,17 +160,23 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 {session?.member?.name ?? session?.actor.name ?? "Executive Command Center"}
               </p>
             </div>
-            <Link href="/org-chart" className="mobile-org-link tap" aria-current={isActive(pathname, "/org-chart") ? "page" : undefined}>Org chart</Link>
+            <div className="flex flex-none items-center gap-1.5">
+              <Link href="/org-chart" className="mobile-org-link tap" aria-current={isActive(pathname, "/org-chart") ? "page" : undefined}>Org</Link>
+              <span className="toolbar-slot"><ThemeSelector /></span>
+              <button type="button" onClick={() => signOut({ callbackUrl: "/sign-in" })} className="member-signout tap" title="Sign out" aria-label="Sign out">↗</button>
+            </div>
           </div>
         </header>
 
-        <div className="border-b px-4 py-3 sm:px-6" style={{ borderColor: "var(--border)", background: "var(--surface)" }}>
+        {/* Desktop toolbar. The theme control sits top right, where macOS and
+            every desktop app put display preferences. */}
+        <div className="notice-bar border-b px-4 py-2.5 sm:px-6">
           <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-xs font-semibold">Prototype — synthetic data only</p>
-              <p className="muted mt-1 text-xs">Demo data is synthetic. Do not enter confidential information.</p>
-            </div>
-            <div className="flex items-center gap-2 sm:hidden"><ThemeSelector /><button type="button" onClick={() => signOut({ callbackUrl: "/sign-in" })} className="mobile-signout tap">Sign out</button></div>
+            <p className="notice-text t-caption">
+              <span className="notice-dot" aria-hidden="true" />
+              Prototype — synthetic data only. Do not enter confidential information.
+            </p>
+            <span className="toolbar-slot hidden flex-none sm:inline-flex"><ThemeSelector /></span>
           </div>
         </div>
 

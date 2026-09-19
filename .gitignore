@@ -14,3 +14,7 @@ next-env.d.ts
 graphify-out/
 .graphify_*
 .playwright-mcp/
+
+# MemPalace per-project files (issue #185)
+mempalace.yaml
+entities.json

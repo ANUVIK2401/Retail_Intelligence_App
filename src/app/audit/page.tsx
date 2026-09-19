@@ -19,10 +19,11 @@ export default function AuditPage() {
   if (!events) return <p className="muted py-10 text-center text-sm">Loading…</p>;
 
   return (
-    <div className="space-y-4">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Audit history</h1>
-        <p className="muted text-sm">
+    <div className="space-y-5">
+      <header className="page-head enter">
+        <p className="page-eyebrow">Governance</p>
+        <h1 className="t-title mt-2">Audit history</h1>
+        <p className="muted t-body mt-2 max-w-prose">
           Every assessment, policy outcome, approval, refusal, and connector call. Message
           bodies are not copied here.
         </p>
@@ -32,18 +33,18 @@ export default function AuditPage() {
         <Empty>No events yet. Work through the Inbox or Schedule to generate some.</Empty>
       ) : (
         <ul className="space-y-2">
-          {events.map((e) => (
+          {events.map((e, index) => (
             <li key={e.id}>
-              <Card>
+              {/* A log is scanned top to bottom, so events are rows with a
+                  hairline rule rather than nine separately floating cards. */}
+              <Card className="enter" style={{ "--i": Math.min(index, 8) } as React.CSSProperties}>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-xs font-semibold" style={{ color: "var(--accent)" }}>
-                    {e.action}
-                  </span>
+                  <span className="audit-action">{e.action}</span>
                   {e.risk && <RiskBadge level={e.risk} />}
-                  <span className="muted ml-auto text-xs">{relativeTime(e.at)}</span>
+                  <span className="muted t-caption tnum ml-auto">{relativeTime(e.at)}</span>
                 </div>
-                <p className="mt-1.5 text-[13px] leading-relaxed">{e.detail}</p>
-                <dl className="muted mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5 font-mono text-[11px] sm:grid-cols-4">
+                <p className="t-caption mt-2 leading-relaxed">{e.detail}</p>
+                <dl className="meta-grid">
                   <Pair k="actor" v={`${e.actorName} (${e.actorRole})`} />
                   <Pair k="resource" v={`${e.resourceType}/${e.resourceId}`} />
                   <Pair k="outcome" v={e.outcome} />
@@ -63,10 +64,12 @@ export default function AuditPage() {
 }
 
 function Pair({ k, v }: { k: string; v: string }) {
+  // Label above value, so the eye can run down one column of values instead of
+  // re-parsing "key: value" on every line.
   return (
     <div className="min-w-0">
-      <dt className="inline">{k}: </dt>
-      <dd className="inline break-words">{v}</dd>
+      <dt className="meta-key">{k}</dt>
+      <dd className="meta-value break-words">{v}</dd>
     </div>
   );
 }

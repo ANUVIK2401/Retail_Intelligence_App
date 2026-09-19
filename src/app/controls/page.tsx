@@ -55,10 +55,11 @@ export default function ControlsPage() {
   }, {});
 
   return (
-    <div className="space-y-4">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Controls</h1>
-        <p className="muted text-sm">
+    <div className="space-y-5">
+      <header className="page-head enter">
+        <p className="page-eyebrow">Governance</p>
+        <h1 className="t-title mt-2">Controls</h1>
+        <p className="muted t-body mt-2 max-w-prose">
           What the company can switch on and off, and what it cannot. Policy version{" "}
           <span className="font-mono">{data.policyVersion}</span>.
         </p>

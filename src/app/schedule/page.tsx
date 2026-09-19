@@ -70,10 +70,11 @@ export default function SchedulePage() {
   }
 
   return (
-    <div className="space-y-4">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Schedule</h1>
-        <p className="muted text-sm">
+    <div className="space-y-5">
+      <header className="page-head enter">
+        <p className="page-eyebrow">Daily work</p>
+        <h1 className="t-title mt-2">Schedule</h1>
+        <p className="muted t-body mt-2 max-w-prose">
           Who may book directly, and who goes through the assistant, is a company rule,
           not an availability question.
         </p>
@@ -162,7 +163,7 @@ export default function SchedulePage() {
               has no field to carry one.
             </p>
             {proposal.slots.length === 0 ? (
-              <p className="muted text-sm">
+              <p className="muted t-body mt-2 max-w-prose">
                 No slot satisfies everyone&apos;s working hours and protected blocks in this
                 window.
               </p>
@@ -171,7 +172,7 @@ export default function SchedulePage() {
                 {proposal.slots.map((slot, i) => (
                   <li
                     key={i}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3"
+                    className="row-item flex flex-wrap items-center justify-between gap-3"
                     style={{ borderColor: "var(--border)" }}
                   >
                     <div>

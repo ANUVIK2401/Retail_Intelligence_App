@@ -24,6 +24,10 @@
   --shadow-md: 0 2px 6px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.07);
   --shadow-lg: 0 8px 20px rgba(0,0,0,0.08), 0 24px 56px rgba(0,0,0,0.10);
   --material: rgba(255, 255, 255, 0.72);
+  /* Top-edge highlight and the recessed fill used by rows inside a card. */
+  --specular: rgba(255, 255, 255, 0.9);
+  --sunken: #fafafc;
+  --tint-veil: rgba(10, 92, 171, 0.035);
   /* Apple's easing. Motion decelerates rather than running at constant speed. */
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
   --radius-sm: 10px;
@@ -37,6 +41,21 @@
   --high-bg: #fdeaec;
   --restricted: #4b2a86;
   --restricted-bg: #f0ebfa;
+
+  /* Type scale. Apple's ratio is not uniform: display sizes jump, body sizes
+     step gently. A flat scale is the single biggest reason an interface reads
+     as a template, so these are deliberately far apart at the top. */
+  --text-display: clamp(30px, 4.4vw + 16px, 44px);
+  --text-title: clamp(21px, 1.4vw + 15px, 27px);
+  --text-section: 17px;
+  --text-body: 15px;
+  --text-caption: 13px;
+  --text-micro: 11px;
+  /* Vertical rhythm. Three stops, not one, so a page has grouping instead of
+     one uniform gap repeated fourteen times. */
+  --gap-tight: 10px;
+  --gap: 16px;
+  --gap-loose: 28px;
 }
 
 :root[data-theme="dark"] {
@@ -60,6 +79,10 @@
   --shadow-md: 0 2px 8px rgba(0,0,0,0.55), 0 12px 32px rgba(0,0,0,0.45);
   --shadow-lg: 0 10px 28px rgba(0,0,0,0.6), 0 28px 64px rgba(0,0,0,0.5);
   --material: rgba(28, 28, 30, 0.74);
+  /* In dark mode the highlight is a faint white edge, not a glow. */
+  --specular: rgba(255, 255, 255, 0.11);
+  --sunken: #232325;
+  --tint-veil: rgba(108, 185, 255, 0.05);
   --low: #78e1b0;
   --low-bg: #142e24;
   --medium: #ffd083;
@@ -92,6 +115,10 @@
   --shadow-md: 0 2px 8px rgba(0,0,0,0.55), 0 12px 32px rgba(0,0,0,0.45);
   --shadow-lg: 0 10px 28px rgba(0,0,0,0.6), 0 28px 64px rgba(0,0,0,0.5);
   --material: rgba(28, 28, 30, 0.74);
+  /* In dark mode the highlight is a faint white edge, not a glow. */
+  --specular: rgba(255, 255, 255, 0.11);
+  --sunken: #232325;
+  --tint-veil: rgba(108, 185, 255, 0.05);
   --low: #78e1b0;
   --low-bg: #142e24;
   --medium: #ffd083;
@@ -134,16 +161,75 @@ h3, h4 { letter-spacing: -0.014em; font-weight: 600; }
 }
 
 .card {
+  position: relative;
   background: var(--surface);
   /* A hairline plus a soft shadow, rather than a 1px box. The border is there
      to define the edge at high contrast; the shadow is what makes it read as
      a surface sitting above the canvas. */
   border: 1px solid var(--hairline);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  transition: box-shadow 0.25s var(--ease), transform 0.25s var(--ease);
+  transition: box-shadow 0.4s var(--ease), transform 0.4s var(--ease),
+    border-color 0.4s var(--ease);
 }
-.card:hover { box-shadow: var(--shadow-md); }
+/* A specular top edge. One hairline of near-white along the top of a surface
+   is how macOS suggests a light source above the window; without it a card is
+   a rectangle, with it the card has a thickness. */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--specular) 100%, transparent) 22%,
+    color-mix(in srgb, var(--specular) 100%, transparent) 78%,
+    transparent
+  );
+  pointer-events: none;
+}
+.card:hover {
+  box-shadow: var(--shadow-md);
+  /* Lifting by 2px on hover is the difference between a card that is drawn and
+     a card that is sitting on something. Compositor-only, so it is free. */
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 16%, var(--hairline));
+}
+
+/* Interactive rows inside a card. These carry most of the content in this app,
+   and they were plain bordered rectangles, which is what made the pages read
+   flat. A tinted fill plus a travelling accent edge gives them a state. */
+.row-item {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--sunken);
+  padding: 12px 14px;
+  transition: background 0.3s var(--ease), border-color 0.3s var(--ease),
+    transform 0.3s var(--ease);
+}
+.row-item::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+  transform: scaleY(0);
+  transform-origin: 50% 50%;
+  transition: transform 0.35s var(--ease);
+}
+.row-item:hover {
+  background: color-mix(in srgb, var(--accent) 7%, var(--sunken));
+  border-color: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.row-item:hover::after { transform: scaleY(1); }
+/* Pressed feedback as opacity, not scale, for the same target-size reason. */
+a.row-item:active { opacity: 0.82; }
 
 /* Translucent chrome. Content scrolling under a blurred bar is the single most
    recognisably Apple detail, and it also keeps the bar legible over any
@@ -510,4 +596,533 @@ nav a:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
   .assistant-rail-mobile-head,
   .assistant-launcher,
   .assistant-backdrop { display: none; }
+}
+
+/* ===========================================================================
+   Type scale
+   Utilities rather than element selectors, so a heading level stays semantic
+   and its size stays a design decision.
+   ========================================================================= */
+.t-display {
+  font-size: var(--text-display);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.04;
+}
+.t-title {
+  font-size: var(--text-title);
+  font-weight: 680;
+  letter-spacing: -0.022em;
+  line-height: 1.16;
+}
+.t-section {
+  font-size: var(--text-section);
+  font-weight: 640;
+  letter-spacing: -0.016em;
+}
+.t-body { font-size: var(--text-body); line-height: 1.5; }
+.t-caption { font-size: var(--text-caption); line-height: 1.45; }
+.t-micro {
+  font-size: var(--text-micro);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+/* Numbers that sit in a column or get compared must not jitter between frames
+   as digits change width. */
+.tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+
+/* ===========================================================================
+   Entrance motion
+   Cards arrive rather than appear. The stagger is what reads as considered:
+   a simultaneous fade of nine cards reads as a page load, a 45ms cascade reads
+   as the interface assembling itself.
+   ========================================================================= */
+@keyframes rise {
+  /* Translate only, never scale. A scaled-down card shrinks the touch targets
+     inside it for the length of the animation: a 44px control measures 43px
+     at scale(0.985), so a tap landing mid-flight hits an undersized target.
+     The vertical travel gives the same sense of arrival for free. */
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+.enter {
+  animation: rise 0.62s var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+
+@keyframes sheen {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(220%); }
+}
+
+/* ===========================================================================
+   Segmented control (theme switch, top right)
+   ========================================================================= */
+/* Each option is a real 44px button, so the touch target is the element the
+   browser dispatches to rather than a wrapper the finger happens to land on.
+   The painted pill is inset from that with padding, which is why the control
+   still looks like a 38px chip while measuring 44px. */
+.segmented {
+  position: relative;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0;
+  border-radius: 999px;
+}
+.segmented-thumb {
+  position: absolute;
+  z-index: 0;
+  top: 3px;
+  left: 0;
+  width: calc(100% / 3);
+  height: calc(100% - 6px);
+  padding: 0 3px;
+  background-clip: content-box;
+  border-radius: 999px;
+  background-color: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+  /* The one spring in the interface. A theme switch is a physical flick, and
+     a slight overshoot is what sells it. */
+  transition: transform 0.42s cubic-bezier(0.34, 1.42, 0.5, 1);
+}
+.segmented-option {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  /* Constitution: touch targets >= 44px. Measured on the button itself. */
+  min-height: 44px;
+  min-width: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.3s var(--ease);
+}
+.segmented-option:hover { color: var(--text); }
+.segmented-option[data-selected] { color: var(--accent); }
+.segmented-option:active { transform: scale(0.94); }
+
+/* The control lives in a 44px-tall toolbar row, which supplies the touch
+   target; the painted pill itself stays 34px so the chrome does not dominate. */
+/* `.toolbar-slot` and Tailwind's `.hidden` have equal specificity, and this
+   file is emitted after the utilities, so a plain `display: inline-flex` here
+   silently beat `hidden sm:inline-flex` and rendered the control twice on a
+   phone. Scoping to :not(.hidden) lets the utility win without !important. */
+.toolbar-slot:not(.hidden) {
+  display: inline-flex;
+}
+.toolbar-slot {
+  min-height: 44px;
+  align-items: center;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: var(--sunken);
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+/* ===========================================================================
+   Page header + stat tiles
+   A dashboard whose only number is inside a muted sentence has no hierarchy.
+   These are the figures an executive scans first, so they get display type.
+   ========================================================================= */
+.page-head {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(120% 140% at 88% -30%, var(--accent-soft), transparent 58%),
+    var(--surface);
+  padding: clamp(18px, 3.4vw, 30px);
+  box-shadow: var(--shadow-sm);
+}
+.page-head::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--specular) 30%, transparent);
+}
+.page-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent);
+  font-size: var(--text-micro);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.page-eyebrow::before {
+  content: "";
+  height: 6px;
+  width: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
+  gap: var(--gap-tight);
+}
+.stat {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease);
+}
+.stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.stat-value {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.stat-label {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--text-micro);
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+/* A rail keyed to the tile's meaning, and only where there is meaning to key
+   to. A count of zero is not "good", so a zero tile stays neutral rather than
+   claiming green: colour here reinforces the label, it never invents a state
+   the number does not have. */
+.stat::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 2px;
+  background: var(--stat-tone, var(--border));
+}
+.stat-high { --stat-tone: var(--high); }
+.stat-medium { --stat-tone: var(--medium); }
+.stat-low { --stat-tone: var(--low); }
+.stat-neutral { --stat-tone: color-mix(in srgb, var(--border) 80%, transparent); }
+/* The value itself carries the tone, which is stronger than the rail and
+   survives greyscale better than a 2px line does. */
+.stat-high .stat-value { color: var(--high); }
+.stat-medium .stat-value { color: var(--medium); }
+
+/* A section label with a rule that fills the remaining width. Cheap editorial
+   structure: it groups without adding another box. */
+.rule-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: var(--text-micro);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.rule-head::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, var(--hairline), transparent);
+}
+
+/* Badges get a faint inner edge so a tint pill still has a boundary on a
+   tinted card, without going back to a competing 1px outline. */
+.badge {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 16%, transparent);
+}
+
+/* A card that should draw the eye first. Used for escalations. */
+.card-attention {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--high) 5%, transparent), transparent 120px),
+    var(--surface);
+  border-color: color-mix(in srgb, var(--high) 22%, var(--hairline));
+}
+
+/* Motion is decoration here, never information. Everything above still reads
+   correctly with all of it switched off. */
+@media (prefers-reduced-motion: reduce) {
+  .enter { animation: none; }
+  .card:hover, .stat:hover { transform: none; }
+  .segmented-thumb { transition: none; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ===========================================================================
+   Toolbar / notice bar
+   A standing disclaimer should be quiet. Two stacked lines of it at the top of
+   every page was shouting a thing nobody needed to read twice.
+   ========================================================================= */
+.notice-bar {
+  border-color: var(--hairline);
+  background: color-mix(in srgb, var(--medium) 5%, var(--surface));
+}
+.notice-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  /* --muted on the amber notice surface measures 4.12:1, under the 4.5 AA
+     threshold for 13px text. Mixing toward --text lifts it clear while the
+     line still reads as secondary. */
+  color: color-mix(in srgb, var(--muted) 62%, var(--text));
+}
+.notice-dot {
+  height: 6px;
+  width: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--medium);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--medium) 18%, transparent);
+}
+
+/* ===========================================================================
+   Card internals
+   ========================================================================= */
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+/* A card title and its rule need no other separator, so a card with a header
+   does not also need internal boxes to group its rows. */
+.card-head > h2 { min-width: 0; }
+
+.card-link {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  color: var(--accent);
+  font-size: var(--text-caption);
+  font-weight: 640;
+  letter-spacing: -0.01em;
+}
+.card-link svg { transition: transform 0.3s var(--ease); }
+.card-link:hover svg { transform: translateX(3px); }
+
+/* A list where the separator is a hairline rather than a gap. Denser, and it
+   stops five rows from reading as five floating fragments. */
+.divide-list > li + li {
+  border-top: 1px solid var(--hairline);
+}
+.quiet-row {
+  /* min-height alone loses to the flex line box here, landing at 43px.
+     Padding plus the minimum makes the measured height unambiguous. */
+  min-height: 44px;
+  padding-top: 11px;
+  padding-bottom: 11px;
+  margin: 0 -8px;
+  border-radius: var(--radius-sm);
+  padding: 0 8px;
+  transition: background 0.24s var(--ease), padding-left 0.24s var(--ease);
+}
+.quiet-row:hover {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  padding-left: 12px;
+}
+.dot {
+  height: 7px;
+  width: 7px;
+  flex: none;
+  border-radius: 50%;
+  /* A ring around the dot keeps a 7px mark legible against a tinted hover
+     background without making the dot itself bigger. */
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.brief-item { position: relative; padding-left: 14px; }
+.brief-item::before {
+  content: "";
+  position: absolute;
+  inset: 3px auto 3px 0;
+  width: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.cite {
+  color: var(--accent);
+  font-size: var(--text-micro);
+  font-weight: 640;
+  letter-spacing: 0.01em;
+}
+
+.audit-list > li + li { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--hairline); }
+.audit-action {
+  border-radius: 6px;
+  background: var(--accent-soft);
+  padding: 2px 7px;
+  color: var(--accent);
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-micro);
+  font-weight: 620;
+  letter-spacing: 0;
+}
+
+/* Approval progress. Ticks read at a glance; "step 2 of 3" does not. */
+.step-meter { display: inline-flex; align-items: center; gap: 4px; }
+.step-tick {
+  height: 4px;
+  width: 16px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--border) 70%, transparent);
+  transition: background 0.3s var(--ease);
+}
+.step-tick[data-done] { background: var(--accent); }
+.step-meter > .t-micro { margin-left: 3px; }
+
+.reason {
+  position: relative;
+  margin-top: 10px;
+  padding: 2px 0 2px 13px;
+  color: var(--text);
+  line-height: 1.55;
+}
+.reason::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 26px 12px;
+  text-align: center;
+}
+/* An empty state used as a whole page section, rather than inside a card, had
+   nothing under it and read as a page that had failed to load. A dashed
+   surface says "this is empty on purpose". */
+.card > .empty-state,
+.card .empty-state { border: 0; background: none; padding: 26px 12px; }
+:where(div, main) > .empty-state,
+:where(div, main) > * > .empty-state {
+  border: 1px dashed color-mix(in srgb, var(--border) 85%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  padding: 44px 20px;
+}
+.empty-mark {
+  display: grid;
+  height: 34px;
+  width: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--sunken);
+  color: var(--muted);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+/* Loading placeholder. A travelling highlight, not a pulsing grey block. */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  background: var(--sunken);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--text) 5%, transparent),
+    transparent
+  );
+  animation: sheen 1.5s var(--ease) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .shimmer::after { animation: none; }
+}
+
+.sr-only {
+  position: absolute;
+  height: 1px;
+  width: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ===========================================================================
+   Page-level surfaces used across the feature pages
+   ========================================================================= */
+/* A row that is itself the whole card-sized object in a list (inbox rows).
+   Slightly more padding than a row nested inside a card. */
+.card-row {
+  background: var(--surface);
+  border-color: var(--hairline);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+}
+.card-row:hover {
+  background: var(--surface);
+  border-color: color-mix(in srgb, var(--accent) 26%, var(--hairline));
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+/* Model-proposed text. It is a quotation of something not yet approved, so it
+   is set apart and tinted, never styled like committed content. */
+.proposed {
+  position: relative;
+  overflow-x: auto;
+  border: 1px solid var(--hairline);
+  border-left: 3px solid color-mix(in srgb, var(--accent) 50%, transparent);
+  border-radius: var(--radius-sm);
+  background: var(--sunken);
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: var(--text-caption);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+/* Audit metadata. Key above value in a responsive column set. */
+.meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: 10px 18px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+}
+.meta-key {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.meta-value {
+  margin-top: 2px;
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-micro);
+  line-height: 1.4;
 }

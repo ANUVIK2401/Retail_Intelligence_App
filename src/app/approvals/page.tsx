@@ -36,10 +36,11 @@ export default function ApprovalsPage() {
   if (!approvals) return <p className="muted py-10 text-center text-sm">Loading…</p>;
 
   return (
-    <div className="space-y-4">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Approvals</h1>
-        <p className="muted text-sm">
+    <div className="space-y-5">
+      <header className="page-head enter">
+        <p className="page-eyebrow">Daily work</p>
+        <h1 className="t-title mt-2">Approvals</h1>
+        <p className="muted t-body mt-2 max-w-prose">
           Each step names who may clear it. Approving as the wrong identity is refused
           and recorded.
         </p>
@@ -64,19 +65,14 @@ export default function ApprovalsPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <RiskBadge level={a.risk} />
                     <OutcomeBadge outcome={a.decision.outcome} />
-                    <span className="muted ml-auto text-xs">{relativeTime(a.createdAt)}</span>
+                    <span className="muted t-caption tnum ml-auto">{relativeTime(a.createdAt)}</span>
                   </div>
-                  <h2 className="mt-2 text-sm font-semibold leading-snug">{a.title}</h2>
+                  <h2 className="t-section mt-2.5 leading-snug">{a.title}</h2>
                   <Reason>{a.decision.reason}</Reason>
 
                   <div className="mt-3">
-                    <p className="text-xs font-semibold uppercase tracking-wider muted">
-                      Proposed content
-                    </p>
-                    <pre className="mt-1 whitespace-pre-wrap rounded-lg border p-3 font-sans text-[13px] leading-relaxed"
-                      style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
-                      {a.proposedContent}
-                    </pre>
+                    <p className="rule-head">Proposed content</p>
+                    <pre className="proposed mt-2">{a.proposedContent}</pre>
                   </div>
 
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">

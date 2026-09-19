@@ -13,9 +13,10 @@ const ITEMS = [
 
 export default function MorePage() {
   return (
-    <div className="space-y-4">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">More</h1>
+    <div className="space-y-5">
+      <header className="page-head enter">
+        <p className="page-eyebrow">Navigation</p>
+        <h1 className="t-title mt-2">More</h1>
       </header>
       <Card>
         <ul className="divide-y" style={{ borderColor: "var(--border)" }}>

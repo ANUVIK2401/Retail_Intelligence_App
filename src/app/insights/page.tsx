@@ -70,10 +70,11 @@ export default function InsightsPage() {
   if (!data) return <p className="muted py-10 text-center text-sm">Loading…</p>;
 
   return (
-    <div className="space-y-4">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Insights</h1>
-        <p className="muted text-sm">
+    <div className="space-y-5">
+      <header className="page-head enter">
+        <p className="page-eyebrow">Intelligence</p>
+        <h1 className="t-title mt-2">Insights</h1>
+        <p className="muted t-body mt-2 max-w-prose">
           Different functions get different insights from different sources. Every claim
           carries the document it came from.
         </p>

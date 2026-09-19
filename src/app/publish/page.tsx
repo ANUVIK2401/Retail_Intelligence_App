@@ -181,10 +181,11 @@ export default function PublishPage() {
   }, [draftId]);
 
   return (
-    <div className="space-y-4">
-      <header>
-        <h1 className="text-xl font-semibold tracking-tight">Publish</h1>
-        <p className="muted text-sm">
+    <div className="space-y-5">
+      <header className="page-head enter">
+        <p className="page-eyebrow">Intelligence</p>
+        <h1 className="t-title mt-2">Publish</h1>
+        <p className="muted t-body mt-2 max-w-prose">
           Draft, check, review, approve, export. The prototype never posts to an external
           platform.
         </p>
