@@ -53,6 +53,14 @@ jobs:
       - name: Demo and security checks
         run: bash scripts/verify-demo.sh
 
+      - name: Cross-device layout
+        # The app is used on a phone and on a laptop, so both are checked:
+        # no horizontal scroll and no touch target under 44px, at nine device
+        # widths across every page.
+        run: |
+          npx playwright install --with-deps chromium
+          node scripts/verify-responsive.mjs
+
       - name: Production build refuses demo auth
         # The guard that makes the step above safe: with NODE_ENV=production
         # the demo bypass must be gone, so an unauthenticated request is

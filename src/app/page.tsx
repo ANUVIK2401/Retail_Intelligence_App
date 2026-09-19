@@ -82,7 +82,7 @@ export default function DashboardPage() {
       <Card
         title="Approvals waiting"
         action={
-          <Link href="/approvals" className="text-xs font-semibold" style={{ color: "var(--accent)" }}>
+          <Link href="/approvals" className="tap inline-flex items-center text-xs font-semibold" style={{ color: "var(--accent)", minHeight: 44 }}>
             View all
           </Link>
         }
@@ -115,7 +115,10 @@ export default function DashboardPage() {
             <ul className="space-y-1.5">
               {data.routine.slice(0, 5).map((m) => (
                 <li key={m.id}>
-                  <Link href={`/inbox/${m.id}`} className="tap flex items-center gap-2 text-sm">
+                  {/* min-w-0: a flex child defaults to min-width:auto, so the
+                      truncating span below grows to its full text width and
+                      pushes the card past the viewport on a phone. */}
+                  <Link href={`/inbox/${m.id}`} className="tap flex min-w-0 items-center gap-2 text-sm">
                     <span
                       className="inline-block h-1.5 w-1.5 shrink-0 rounded-full"
                       style={{ background: m.level === "medium" ? "var(--medium)" : "var(--low)" }}
@@ -146,7 +149,7 @@ export default function DashboardPage() {
       <Card
         title="Recent activity"
         action={
-          <Link href="/audit" className="text-xs font-semibold" style={{ color: "var(--accent)" }}>
+          <Link href="/audit" className="tap inline-flex items-center text-xs font-semibold" style={{ color: "var(--accent)", minHeight: 44 }}>
             Audit history
           </Link>
         }

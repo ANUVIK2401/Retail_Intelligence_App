@@ -174,6 +174,24 @@ a {
 input, textarea, select { color: var(--text); color-scheme: inherit; }
 input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 textarea, select, input { max-width: 100%; }
+
+/* A native checkbox renders about 13px, well under the 44px touch minimum.
+   Enlarging the control and giving its label a full-height row makes the
+   whole line tappable rather than just the box. */
+input[type="checkbox"], input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+label:has(> input[type="checkbox"]), label:has(> input[type="radio"]) {
+  min-height: 44px;
+}
+
+/* A phone must never scroll sideways. One long unbroken subject in a flex row
+   used to push the whole card past the viewport; this is the backstop so a
+   future card cannot reintroduce it silently. */
+html, body { overflow-x: hidden; }
+.card { max-width: 100%; }
 main { overflow-wrap: anywhere; }
 button, a, select, input, textarea { -webkit-tap-highlight-color: transparent; }
 .btn-primary:hover { filter: brightness(0.94); }
@@ -239,8 +257,13 @@ nav a:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
   font-weight: 800;
 }
 .member-signout {
-  width: 34px;
-  min-height: 34px;
+  /* 44px is the minimum comfortable touch target; the glyph still reads small
+     because the padding does the work, not the font size. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
   border-radius: 8px;
   color: var(--muted);
   cursor: pointer;
@@ -323,6 +346,8 @@ nav a:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .org-note { display: flex; gap: 12px; border: 1px solid var(--border); border-radius: 13px; padding: 15px; background: color-mix(in srgb, var(--accent) 4%, var(--surface)); }
 .org-note-mark { display: grid; flex: none; height: 22px; width: 22px; place-items: center; border: 1px solid var(--accent); border-radius: 50%; color: var(--accent); font-size: 12px; font-weight: 700; }
 @media (max-width: 639px) {
+  /* Clears the bottom tab bar (56px) and the floating assistant button. */
+  main { padding-bottom: 150px; }
   .org-leadership-grid { grid-template-columns: 1fr; }
   .org-reports { margin-left: 18px; }
   .org-page-header h1 { font-size: 22px; }
