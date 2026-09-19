@@ -16,7 +16,9 @@ fi
 B="${B%/}"
 
 PASS=0; FAIL=0; WARN=0
-ck() { if grep -q -- "$2" <<<"$3"; then echo "  PASS  $1"; PASS=$((PASS+1));
+# Case-insensitive: HTTP/2 lowercases header names, so a case-sensitive match
+# reported a missing Content-Security-Policy that was actually present.
+ck() { if grep -qi -- "$2" <<<"$3"; then echo "  PASS  $1"; PASS=$((PASS+1));
   else echo "  FAIL  $1"; echo "        wanted: $2"; echo "        got:    ${3:0:200}"; FAIL=$((FAIL+1)); fi; }
 warn() { echo "  WARN  $1"; WARN=$((WARN+1)); }
 
