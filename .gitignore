@@ -9,3 +9,8 @@ next-env.d.ts
 !.env.example
 .vercel/
 .playwright-mcp/
+
+# graphify build artifacts
+graphify-out/
+.graphify_*
+.playwright-mcp/

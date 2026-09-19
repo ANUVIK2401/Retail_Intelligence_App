@@ -150,8 +150,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <div ref={contentRef} className="flex min-w-0 flex-1 flex-col">
         {/* Phone header */}
         <header
-          className="sticky top-0 z-20 border-b px-4 py-3 sm:hidden"
-          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+          className="material-bar sticky top-0 z-20 border-b px-4 py-3 sm:hidden"
         >
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
@@ -183,8 +182,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         {/* Phone bottom navigation */}
         <nav
           aria-label="Main navigation"
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t pb-[env(safe-area-inset-bottom)] sm:hidden"
-          style={{ borderColor: "var(--border)", background: "var(--surface)" }}
+          className="material-bar fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t pb-[env(safe-area-inset-bottom)] sm:hidden"
         >
           {PRIMARY.map((item) => {
             const active = isActive(pathname, item.href);
