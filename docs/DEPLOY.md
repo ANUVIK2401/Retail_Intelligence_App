@@ -12,7 +12,10 @@ broken build. It becomes a working app once step 4 is done.
 ## 1. Import the repository
 
 In Vercel: **Add New → Project → Import Git Repository**, choose
-`ANUVIK2401/Retail_Intelligence_App`.
+`ANUVIK2401/retail_intelligence_center`. The existing meeting project serves
+`https://retailintelligencecenter.vercel.app` from this repository's `main`
+branch (local remote `center`). Pushing only to the separate
+`Retail_Intelligence_App` repository will not update the meeting site.
 
 Leave the build settings alone. `vercel.json` already sets the framework,
 `npm ci`, and `npm run build`. Do **not** deploy yet — add the environment

@@ -33,8 +33,12 @@ AI_PROVIDER=anthropic ANTHROPIC_API_KEY=... ANTHROPIC_MODEL=... npm run dev
 ## Vercel demo deployment
 
 Step-by-step runbook: **[docs/DEPLOY.md](docs/DEPLOY.md)**. After deploying,
-check the live URL with `bash scripts/verify-deploy.sh https://your-app.vercel.app`.
+check the live URL with `bash scripts/verify-deploy.sh https://retailintelligencecenter.vercel.app`.
 
+The meeting deployment is [retailintelligencecenter.vercel.app](https://retailintelligencecenter.vercel.app).
+Its Vercel project watches `ANUVIK2401/retail_intelligence_center` (the local
+`center` remote). Pushes to the separate `Retail_Intelligence_App` repository (`origin`)
+do not update the live site.
 
 The Vercel deployment requires a pooled Postgres `DATABASE_URL`, Google OAuth
 web-client credentials (`AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`), a random
