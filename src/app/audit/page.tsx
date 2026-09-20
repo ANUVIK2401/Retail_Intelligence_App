@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { AuditEvent } from "@/core/contracts";
 import { Card, Empty, RiskBadge, relativeTime } from "@/components/primitives";
 
@@ -8,15 +8,24 @@ type Row = AuditEvent & { actorName: string };
 
 export default function AuditPage() {
   const [events, setEvents] = useState<Row[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/audit-events")
-      .then((r) => r.json())
-      .then((d) => setEvents(d.events))
-      .catch(() => setEvents([]));
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const response = await fetch("/api/audit-events");
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const body = await response.json();
+      if (!Array.isArray(body.events)) throw new Error("Invalid audit response");
+      setEvents(body.events);
+    } catch {
+      setError("Audit history could not be loaded. Please try again.");
+    }
   }, []);
 
-  if (!events) return <p className="muted py-10 text-center text-sm">Loading…</p>;
+  useEffect(() => { void load(); }, [load]);
+
+  if (!events && !error) return <p className="muted py-10 text-center text-sm" role="status">Loading audit history…</p>;
 
   return (
     <div className="space-y-5">
@@ -24,14 +33,21 @@ export default function AuditPage() {
         <p className="page-eyebrow">Governance</p>
         <h1 className="t-title mt-2">Audit history</h1>
         <p className="muted t-body mt-2 max-w-prose">
-          Every assessment, policy outcome, approval, refusal, and connector call. Message
-          bodies are not copied here.
+          Assessment, policy, approval, refusal, and connector activity for this signed-in
+          demo session. Message bodies are not copied here.
         </p>
       </header>
 
-      {events.length === 0 ? (
+      {error && (
+        <Card title="Audit history unavailable">
+          <p className="muted text-sm">{error}</p>
+          <button type="button" className="btn mt-3" onClick={() => void load()}>Retry</button>
+        </Card>
+      )}
+
+      {events?.length === 0 && !error ? (
         <Empty>No events yet. Work through the Inbox or Schedule to generate some.</Empty>
-      ) : (
+      ) : !error && events && events.length > 0 ? (
         <ul className="space-y-2">
           {events.map((e, index) => (
             <li key={e.id}>
@@ -58,7 +74,7 @@ export default function AuditPage() {
             </li>
           ))}
         </ul>
-      )}
+      ) : null}
     </div>
   );
 }

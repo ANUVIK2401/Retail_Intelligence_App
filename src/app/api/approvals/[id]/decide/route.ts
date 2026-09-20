@@ -2,8 +2,9 @@ import { withDemoState } from "@/core/persistence";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 import { NextResponse } from "next/server";
+import { authorizeApprovalStep, canSeeApproval } from "@/core/access";
 import { MockCalendarConnector, MockMailConnector } from "@/core/connectors/mock";
-import { RISK_ORDER, type ApprovalRequest, type Person } from "@/core/contracts";
+import { type ApprovalRequest } from "@/core/contracts";
 import { actorFromRequest } from "@/core/session";
 import {
   claimExecution,
@@ -13,7 +14,7 @@ import {
   nextId,
   recordAudit,
 } from "@/core/store";
-import { DELEGATIONS, personById } from "@/data/org";
+import { RESTRICTED_ACCESS } from "@/data/org";
 
 const mail = new MockMailConnector();
 const calendar = new MockCalendarConnector();
@@ -44,6 +45,9 @@ async function handlePOST(
   if (!approval) {
     return NextResponse.json({ error: "Unknown approval request." }, { status: 404 });
   }
+  if (!canSeeApproval(actor, approval, { restrictedTopicOwners: RESTRICTED_ACCESS.confidential_strategy })) {
+    return NextResponse.json({ error: "Unknown approval request." }, { status: 404 });
+  }
 
   const outcome = body.outcome ?? "approved";
 
@@ -59,7 +63,7 @@ async function handlePOST(
     );
   }
 
-  const authz = authorize(actor, approval);
+  const authz = authorizeApprovalStep(actor, approval);
   if (!authz.ok) {
     recordAudit({
       correlationId: nextId("cor"),
@@ -77,6 +81,14 @@ async function handlePOST(
       detail: authz.reason,
     });
     return NextResponse.json({ error: authz.reason }, { status: 403 });
+  }
+
+  if (approval.subjectType === "meeting_proposal" && outcome === "approved" &&
+    (!Number.isInteger(body.slotIndex) || (body.slotIndex ?? -1) < 0)) {
+    return NextResponse.json(
+      { error: "Choose a proposed meeting time before approving." },
+      { status: 400 },
+    );
   }
 
   let updated: ApprovalRequest;
@@ -97,11 +109,12 @@ async function handlePOST(
   }
 
   const correlationId = nextId("cor");
+  const contentEdited = updated.contentVersion !== approval.contentVersion;
   recordAudit({
     correlationId,
     actorId: actor.id,
     actorRole: actor.roles[0] ?? "executive",
-    action: `approval.${outcome}`,
+    action: `approval.${contentEdited ? "edited" : outcome}`,
     resourceType: "approval",
     resourceId: approval.id,
     outcome: updated.status,
@@ -111,8 +124,8 @@ async function handlePOST(
     aiModel: null,
     promptVersion: null,
     detail:
-      body.editedContent !== undefined
-        ? `${actor.name} edited the proposed content before deciding.`
+      contentEdited
+        ? `${actor.name} edited the proposed content; the review chain restarted.`
         : `${actor.name} recorded: ${outcome}.`,
   });
 
@@ -145,7 +158,7 @@ async function handlePOST(
         });
       } else if (updated.subjectType === "meeting_proposal") {
         const proposal = getProposal(updated.subjectId);
-        const slotIndex = body.slotIndex ?? 0;
+        const slotIndex = body.slotIndex!;
         const slot = proposal?.slots[slotIndex];
 
         // A missing proposal or an out-of-range slot must fail the approval,
@@ -163,7 +176,7 @@ async function handlePOST(
         {
           const event = await calendar.createEvent({
             ownerId: proposal.request.attendeeIds[0],
-            attendeeIds: proposal.request.attendeeIds,
+            attendeeIds: [...new Set([proposal.request.requesterId, ...proposal.request.attendeeIds])],
             start: slot.start,
             end: slot.end,
             subject: proposal.request.purpose,
@@ -210,57 +223,6 @@ async function handlePOST(
   }
 
   return NextResponse.json({ approval: updated, execution });
-}
-
-function authorize(
-  actor: Person,
-  approval: ApprovalRequest,
-): { ok: true } | { ok: false; reason: string } {
-  const step = approval.decision.approvalChain[approval.currentStep];
-  if (!step) return { ok: true };
-
-  if (step.kind === "executive") {
-    // The executive step belongs to the person the request was raised for, or
-    // to someone holding an explicit delegation from them. Accepting any
-    // account with the "executive" role let one executive approve another's
-    // work, which is not how approval authority runs.
-    const isOwner = actor.id === approval.requestedFor;
-    const delegated = DELEGATIONS.some(
-      (d) =>
-        d.delegateId === actor.id &&
-        d.executiveId === approval.requestedFor &&
-        RISK_ORDER[approval.risk] <= RISK_ORDER[d.maxRisk],
-    );
-    if (isOwner || delegated) return { ok: true };
-
-    const owner = personById(approval.requestedFor);
-    return {
-      ok: false,
-      reason: `This step is ${owner?.name ?? "the requesting executive"}'s to clear. ${actor.name} holds no delegation for it.`,
-    };
-  }
-
-  if (step.kind === "executive_assistant") {
-    const delegated = DELEGATIONS.some(
-      (d) => d.delegateId === actor.id && d.executiveId === approval.requestedFor,
-    );
-    if (delegated || actor.roles.includes("executive")) return { ok: true };
-    return {
-      ok: false,
-      reason: `This step is assigned to the delegated executive assistant. ${actor.name} holds no delegation for ${personById(approval.requestedFor)?.name ?? "this executive"}.`,
-    };
-  }
-
-  if (step.kind === "reviewer") {
-    const domain = step.reviewerDomain;
-    if (domain && actor.reviewerDomains.includes(domain)) return { ok: true };
-    return {
-      ok: false,
-      reason: `This step requires the ${domain ?? "assigned"} reviewer. ${actor.name} is not assigned to that review domain.`,
-    };
-  }
-
-  return { ok: true };
 }
 
 export const POST = withDemoState(handlePOST);

@@ -1,5 +1,29 @@
 import { INJECTION_PATTERNS } from "@/core/risk/rules";
-import type { ReviewerDomain } from "@/core/contracts";
+import { createHash } from "node:crypto";
+import type { ApprovalRequest, ReviewerDomain } from "@/core/contracts";
+
+/** Identifies a publication's channel and title; proposedContent holds its approved body. */
+export function publicationSubjectId(input: { channel: string; title: string }): string {
+  return `publication:${createHash("sha256").update(JSON.stringify([input.channel, input.title])).digest("hex")}`;
+}
+
+export function publicationArtifactMatchesApproval(
+  approval: ApprovalRequest | undefined,
+  input: { actorId: string; channel: string; title: string; body: string },
+): boolean {
+  return Boolean(approval && approval.subjectType === "publication" &&
+    approval.action === "publication.publish" && approval.requestedFor === input.actorId &&
+    approval.subjectId === publicationSubjectId(input) &&
+    approval.proposedContent === input.body);
+}
+
+export function matchingPublicationApproval(
+  approval: ApprovalRequest | undefined,
+  input: { actorId: string; channel: string; title: string; body: string },
+): boolean {
+  return publicationArtifactMatchesApproval(approval, input) &&
+    (approval?.status === "approved" || approval?.status === "completed");
+}
 
 /**
  * Pre-publication check pipeline.

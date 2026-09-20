@@ -22,32 +22,55 @@ const CATEGORY_LABEL: Record<string, string> = {
 export default function ControlsPage() {
   const [data, setData] = useState<Payload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/policies");
-    setData(await res.json());
+    setError(null);
+    try {
+      const res = await fetch("/api/policies");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = await res.json();
+      if (!Array.isArray(body.rules) || !body.settings) throw new Error("Invalid policy response");
+      setData(body);
+    } catch {
+      setError("Controls could not be loaded. Please try again.");
+    }
   }, []);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
   async function post(body: Record<string, unknown>) {
     setError(null);
-    const res = await fetch("/api/policies", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error);
-      return;
+    setPending(true);
+    try {
+      const res = await fetch("/api/policies", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setError(json.error ?? "The control could not be updated.");
+        return;
+      }
+      if (!Array.isArray(json.rules) || !json.settings) throw new Error("Invalid policy response");
+      setData((d) => (d ? { ...d, rules: json.rules, settings: json.settings } : d));
+    } catch {
+      setError("The control could not be updated. Please try again.");
+    } finally {
+      setPending(false);
     }
-    setData((d) => (d ? { ...d, rules: json.rules, settings: json.settings } : d));
   }
 
-  if (!data) return <p className="muted py-10 text-center text-sm">Loading…</p>;
+  if (!data && !error) return <p className="muted py-10 text-center text-sm" role="status">Loading controls…</p>;
+  if (!data) return (
+    <Card title="Controls unavailable">
+      <p className="muted text-sm">{error}</p>
+      <button type="button" className="btn mt-3" onClick={() => void load()}>Retry</button>
+    </Card>
+  );
 
   const grouped = data.rules.reduce<Record<string, PolicyRule[]>>((acc, r) => {
     (acc[r.category] ??= []).push(r);
@@ -67,7 +90,7 @@ export default function ControlsPage() {
 
       {error && (
         <Card>
-          <p className="text-sm leading-relaxed" style={{ color: "var(--high)" }}>
+          <p className="text-sm leading-relaxed" role="alert" style={{ color: "var(--high)" }}>
             {error}
           </p>
         </Card>
@@ -79,7 +102,8 @@ export default function ControlsPage() {
             type="checkbox"
             className="mt-3"
             checked={data.settings.simulateCompromisedModel}
-            onChange={(e) => post({ simulateCompromisedModel: e.target.checked })}
+            disabled={pending}
+            onChange={(e) => void post({ simulateCompromisedModel: e.target.checked })}
           />
           <span>
             <span className="text-sm font-semibold">Simulate a compromised model</span>
@@ -115,8 +139,8 @@ export default function ControlsPage() {
                   type="checkbox"
                   className="mt-1"
                   checked={rule.enabled}
-                  disabled={!rule.editable}
-                  onChange={(e) => post({ ruleId: rule.id, enabled: e.target.checked })}
+                  disabled={!rule.editable || pending}
+                  onChange={(e) => void post({ ruleId: rule.id, enabled: e.target.checked })}
                   aria-label={rule.description}
                 />
                 <div className="min-w-0">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Insight, PolicyDecision } from "@/core/contracts";
 import { Card, Empty, Reason } from "@/components/primitives";
 
@@ -33,13 +33,24 @@ export default function InsightsPage() {
   const [result, setResult] = useState<AnswerPayload | null>(null);
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/insights")
-      .then((r) => r.json())
-      .then(setData)
-      .catch(() => setData(null));
+  const load = useCallback(async () => {
+    setLoadError(null);
+    try {
+      const response = await fetch("/api/insights");
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const body = await response.json();
+      if (!Array.isArray(body.sources) || !Array.isArray(body.insights)) {
+        throw new Error("Invalid insights response");
+      }
+      setData(body);
+    } catch {
+      setLoadError("Insights could not be loaded. Please try again.");
+    }
   }, []);
+
+  useEffect(() => { void load(); }, [load]);
 
   async function ask(q: string) {
     const trimmed = q.trim();
@@ -57,17 +68,26 @@ export default function InsightsPage() {
         setError(body.error ?? "Retrieval failed.");
         setResult(null);
       } else {
+        if (!Array.isArray(body?.citations) || !Array.isArray(body?.excluded)) {
+          throw new Error("Invalid retrieval response");
+        }
         setResult(body);
       }
     } catch {
-      setError("Retrieval failed.");
+      setError("Retrieval could not be completed. Please try again.");
       setResult(null);
     } finally {
       setAsking(false);
     }
   }
 
-  if (!data) return <p className="muted py-10 text-center text-sm">Loading…</p>;
+  if (!data && !loadError) return <p className="muted py-10 text-center text-sm" role="status">Loading insights…</p>;
+  if (!data) return (
+    <Card title="Insights unavailable">
+      <p className="muted text-sm">{loadError}</p>
+      <button type="button" className="btn mt-3" onClick={() => void load()}>Retry</button>
+    </Card>
+  );
 
   return (
     <div className="space-y-5">
@@ -79,6 +99,13 @@ export default function InsightsPage() {
           carries the document it came from.
         </p>
       </header>
+
+      {loadError && (
+        <Card title="Insights may be out of date">
+          <p className="muted text-sm">{loadError}</p>
+          <button type="button" className="btn mt-3" onClick={() => void load()}>Retry</button>
+        </Card>
+      )}
 
       <Card title="Ask the approved corpus">
         <form
@@ -132,6 +159,7 @@ export default function InsightsPage() {
               type="button"
               className="btn text-[11px]"
               style={{ minHeight: 44 }}
+              disabled={asking}
               onClick={() => {
                 setQuestion(e);
                 void ask(e);
@@ -143,7 +171,7 @@ export default function InsightsPage() {
         </div>
 
         {error && (
-          <p className="mt-3 text-[13px]" style={{ color: "var(--high)" }}>
+          <p className="mt-3 text-[13px]" role="alert" style={{ color: "var(--high)" }}>
             {error}
           </p>
         )}

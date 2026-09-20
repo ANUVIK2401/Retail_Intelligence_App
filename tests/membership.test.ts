@@ -11,8 +11,8 @@ test("Google membership is fail-closed and exact", () => {
   assert.equal(executiveActorId("ceo@gmail.com", undefined), null);
 });
 
-test("non-executive personas and malformed mappings cannot sign in", () => {
-  assert.equal(executiveActorId("ea@gmail.com", "ea@gmail.com:p_ea"), null);
+test("the named executive assistant can sign in, while other non-executive personas cannot", () => {
+  assert.equal(executiveActorId("ea@gmail.com", "ea@gmail.com:p_ea"), "p_ea");
   assert.equal(executiveActorId("auditor@gmail.com", "auditor@gmail.com:p_auditor"), null);
   assert.equal(executiveActorId("ceo@gmail.com", "ceo@gmail.com:p_missing"), null);
   assert.equal(executiveActorId("ceo@gmail.com", "ceo@gmail.com:p_ceo,broken"), null);

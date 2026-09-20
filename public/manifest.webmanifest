@@ -1,12 +1,11 @@
 {
   "name": "PacSun Executive Command Center",
   "short_name": "PacSun ECC",
-  "description": "Mobile-first executive assistant with organizational controls.",
+  "description": "A governed executive decision workspace for communication, scheduling, approvals, and insights.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f4f2ed",
-  "theme_color": "#0a4f8f",
-  "orientation": "portrait-primary",
+  "background_color": "#f3f5f3",
+  "theme_color": "#153847",
   "icons": [
     {
       "src": "/icon.svg",

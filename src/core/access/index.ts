@@ -1,7 +1,8 @@
-import type { EmailMessage, Person, PolicyDecision } from "@/core/contracts";
+import { RISK_ORDER, type ApprovalRequest, type EmailMessage, type Person, type PolicyDecision, type RiskLevel } from "@/core/contracts";
 import { evaluatePolicy } from "@/core/policy/engine";
 import { evaluateDeterministicRisk } from "@/core/risk/rules";
 import { store } from "@/core/store";
+import { DELEGATIONS, personById } from "@/data/org";
 
 /**
  * The single read-access gate.
@@ -64,7 +65,7 @@ export function safeAuditLabel(message: EmailMessage): string {
  */
 export function canSeeApproval(
   actor: Person,
-  approval: { requestedFor: string; risk: string; subjectType: string; decision: PolicyDecision },
+  approval: { requestedFor: string; risk: string; subjectType: string; action: string; decision: PolicyDecision },
   opts: { restrictedTopicOwners?: string[] } = {},
 ): boolean {
   if (approval.risk === "restricted") {
@@ -74,13 +75,51 @@ export function canSeeApproval(
   if (approval.requestedFor === actor.id) return true;
   if (actor.roles.includes("auditor")) return true;
 
+  const delegated = DELEGATIONS.some((d) => d.executiveId === approval.requestedFor &&
+    d.delegateId === actor.id && d.allowedActions.includes(approval.action) &&
+    RISK_ORDER[approval.risk as RiskLevel] <= RISK_ORDER[d.maxRisk]);
+
   return approval.decision.approvalChain.some((step) => {
     if (step.kind === "reviewer" && step.reviewerDomain) {
       return actor.reviewerDomains.includes(step.reviewerDomain);
     }
     if (step.kind === "executive_assistant") {
-      return actor.roles.includes("executive_assistant");
+      return delegated;
     }
-    return actor.roles.includes("executive");
+    return step.kind === "executive" && delegated;
   });
+}
+
+/** A visible approval may only be decided by its current named authority. */
+export function authorizeApprovalStep(
+  actor: Person,
+  approval: ApprovalRequest,
+): { ok: true } | { ok: false; reason: string } {
+  const step = approval.decision.approvalChain[approval.currentStep];
+  if (!step) return { ok: false, reason: "This approval has no current reviewer." };
+
+  if (step.kind === "executive") {
+    const isOwner = actor.id === approval.requestedFor;
+    const delegated = DELEGATIONS.some((d) =>
+      d.delegateId === actor.id && d.executiveId === approval.requestedFor &&
+      d.allowedActions.includes(approval.action) &&
+      RISK_ORDER[approval.risk] <= RISK_ORDER[d.maxRisk]);
+    if (isOwner || delegated) return { ok: true };
+    return { ok: false, reason: `This step is ${personById(approval.requestedFor)?.name ?? "the requesting executive"}'s to clear. ${actor.name} holds no delegation for it.` };
+  }
+
+  if (step.kind === "executive_assistant") {
+    const delegated = DELEGATIONS.some((d) =>
+      d.delegateId === actor.id && d.executiveId === approval.requestedFor &&
+      d.allowedActions.includes(approval.action) &&
+      RISK_ORDER[approval.risk] <= RISK_ORDER[d.maxRisk]);
+    if (delegated) return { ok: true };
+    return { ok: false, reason: `This step is assigned to the delegated executive assistant for ${personById(approval.requestedFor)?.name ?? "this executive"}.` };
+  }
+
+  if (step.kind === "reviewer") {
+    if (step.reviewerDomain && actor.reviewerDomains.includes(step.reviewerDomain)) return { ok: true };
+    return { ok: false, reason: `This step requires the ${step.reviewerDomain ?? "assigned"} reviewer. ${actor.name} is not assigned to that review domain.` };
+  }
+  return { ok: false, reason: "This approval has no current reviewer." };
 }

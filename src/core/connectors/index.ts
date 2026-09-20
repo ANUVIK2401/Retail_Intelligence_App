@@ -7,9 +7,8 @@ import type { BusyBlock, EmailMessage, Person } from "@/core/contracts";
  * drop in behind them once a test tenant and delegated consent exist; nothing
  * above this line changes.
  *
- * Every write method takes an `approvalId`. A connector that cannot name the
- * approval that authorized it must not be able to write. This is the last
- * gate before an action leaves the system.
+ * Every write method names its authorization. Calendar writes may use an
+ * approval or a policy grant for a directly allowed meeting.
  */
 
 export interface MailConnector {
@@ -41,8 +40,7 @@ export interface CalendarConnector {
     start: string;
     end: string;
     subject: string;
-    approvalId: string;
-  }): Promise<{ eventId: string }>;
+  } & ({ approvalId: string; policyGrantId?: never } | { approvalId?: never; policyGrantId: string })): Promise<{ eventId: string }>;
 }
 
 export interface DirectoryConnector {

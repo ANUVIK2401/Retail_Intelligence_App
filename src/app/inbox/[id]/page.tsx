@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ApprovalRequest, EmailAssessment } from "@/core/contracts";
 import { Card, OutcomeBadge, Reason, RiskBadge, relativeTime } from "@/components/primitives";
 
@@ -25,63 +25,106 @@ export default function MessagePage() {
 
   const [detail, setDetail] = useState<Detail | null>(null);
   const [forbidden, setForbidden] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [approval, setApproval] = useState<ApprovalRequest | null>(null);
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState("");
   const [result, setResult] = useState<string | null>(null);
+  const loadSequence = useRef(0);
 
   const load = useCallback(async () => {
-    const res = await fetch(`/api/emails/${id}`);
-    if (res.status === 403) {
-      const body = await res.json();
-      setForbidden(body.reason);
-      return;
+    const sequence = ++loadSequence.current;
+    setLoadError(null);
+    setDetail(null);
+    setApproval(null);
+    setForbidden(null);
+    try {
+      const res = await fetch(`/api/emails/${encodeURIComponent(id)}`);
+      const data = await res.json();
+      if (sequence !== loadSequence.current) return;
+      if (res.status === 403) {
+        setForbidden(data.reason ?? data.error ?? "Access to this message is withheld.");
+        return;
+      }
+      if (!res.ok) throw new Error(data.error ?? "This message could not be loaded.");
+      if (!data.message) throw new Error("The message returned an unexpected response.");
+      setDetail(data as Detail);
+      setForbidden(null);
+      setDraft(data.assessment?.suggestedReply ?? "");
+      const approvalResponse = await fetch("/api/approvals");
+      const approvalData = await approvalResponse.json();
+      if (sequence !== loadSequence.current) return;
+      if (!approvalResponse.ok) throw new Error(approvalData.error ?? "Approval status could not be loaded.");
+      const current = (approvalData.approvals as ApprovalRequest[] | undefined)?.find(
+        (candidate) => candidate.subjectType === "email_draft" && candidate.subjectId === id &&
+          ["proposed", "awaiting_approval"].includes(candidate.status),
+      );
+      setApproval(current ?? null);
+    } catch (cause) {
+      if (sequence === loadSequence.current) {
+        setLoadError(cause instanceof Error ? cause.message : "This message could not be loaded.");
+      }
     }
-    const data: Detail = await res.json();
-    setDetail(data);
-    if (data.assessment?.suggestedReply) setDraft(data.assessment.suggestedReply);
   }, [id]);
 
   useEffect(() => {
-    load();
+    void load();
+    return () => { loadSequence.current += 1; };
   }, [load]);
 
   async function assess() {
     setBusy(true);
     setResult(null);
-    const res = await fetch(`/api/emails/${id}/assess`, { method: "POST" });
-    const data = await res.json();
-    setBusy(false);
-    if (data.assessment) {
-      setDetail((d) => (d ? { ...d, assessment: data.assessment } : d));
+    try {
+      const res = await fetch(`/api/emails/${encodeURIComponent(id)}/assess`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Assessment failed. Please try again.");
+      if (!data.assessment) throw new Error("Assessment returned an unexpected response.");
+      setDetail((current) => (current ? { ...current, assessment: data.assessment } : current));
       setDraft(data.assessment.suggestedReply ?? "");
       setApproval(data.approval ?? null);
+      setResult("Assessment updated against the current policy.");
+    } catch (cause) {
+      setResult(cause instanceof Error ? cause.message : "Assessment failed. Please try again.");
+    } finally {
+      setBusy(false);
     }
   }
 
   async function decide(outcome: "approved" | "rejected" | "escalated") {
     if (!approval) return;
     setBusy(true);
-    const res = await fetch(`/api/approvals/${approval.id}/decide`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        outcome,
-        editedContent: outcome === "approved" ? draft : undefined,
-      }),
-    });
-    const data = await res.json();
-    setBusy(false);
-    if (!res.ok) {
-      setResult(data.error);
-      return;
+    try {
+      const res = await fetch(`/api/approvals/${approval.id}/decide`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          outcome,
+          editedContent: outcome === "approved" ? draft : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "This decision could not be recorded.");
+      setApproval(data.approval);
+      setResult(
+        data.execution?.kind === "outlook_draft_created"
+          ? `Draft ${data.execution.externalRef} created in the mailbox. It was not sent: sending is a separate authorized action.`
+          : `Recorded: ${data.approval.status}.`,
+      );
+    } catch (cause) {
+      setResult(cause instanceof Error ? cause.message : "This decision could not be recorded.");
+    } finally {
+      setBusy(false);
     }
-    setApproval(data.approval);
-    setResult(
-      data.execution?.kind === "outlook_draft_created"
-        ? `Draft ${data.execution.externalRef} created in the mailbox. It was not sent: sending is a separate authorized action.`
-        : `Recorded: ${data.approval.status}.`,
-    );
+  }
+
+  async function copyDraft() {
+    try {
+      await navigator.clipboard.writeText(draft);
+      setResult("Prepared reply copied. You can paste it into your mail client.");
+    } catch {
+      setResult("The reply could not be copied automatically. Select the text above to copy it.");
+    }
   }
 
   if (forbidden) {
@@ -100,7 +143,14 @@ export default function MessagePage() {
     );
   }
 
-  if (!detail) return <p className="muted py-10 text-center text-sm">Loading…</p>;
+  if (!detail && loadError) return (
+    <div className="space-y-4">
+      <BackLink />
+      <Card><p role="alert" className="text-sm">{loadError}</p><button className="btn mt-3" onClick={() => void load()}>Retry loading message</button></Card>
+    </div>
+  );
+
+  if (!detail) return <Card><p role="status" className="muted text-sm">Loading message…</p></Card>;
 
   const a = detail.assessment;
   const blocked = a?.draftDecision.outcome === "block_and_escalate";
@@ -126,6 +176,8 @@ export default function MessagePage() {
         </pre>
       </Card>
 
+      {loadError && <Card><p role="alert" className="text-sm">{loadError}</p><button className="btn mt-3" onClick={() => void load()}>Retry</button></Card>}
+
       {!a && (
         <button className="btn btn-primary w-full" onClick={assess} disabled={busy}>
           {busy ? "Assessing…" : "Assess this message"}
@@ -134,6 +186,12 @@ export default function MessagePage() {
 
       {a && (
         <>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="muted text-xs">Assessed {relativeTime(a.assessedAt)} · {a.model}</p>
+            <button className="btn" onClick={assess} disabled={busy}>
+              {busy ? "Reassessing…" : "Reassess with current policy"}
+            </button>
+          </div>
           <Card title="Summary">
             <p className="text-sm leading-relaxed">{a.summary}</p>
             {a.actionItems.length > 0 && (
@@ -247,16 +305,8 @@ export default function MessagePage() {
               </p>
               {approval && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button className="btn" onClick={() => decide("escalated")} disabled={busy}>
-                    Acknowledge and escalate
-                  </button>
-                  <button
-                    className="btn btn-primary"
-                    onClick={() => decide("approved")}
-                    disabled={busy}
-                    title="Demonstrates that approval is refused for blocked matters"
-                  >
-                    Try to approve a reply
+                  <button className="btn btn-primary" onClick={() => decide("escalated")} disabled={busy || !["proposed", "awaiting_approval"].includes(approval.status) || approval.history.some((entry) => entry.outcome === "escalated")}>
+                    {approval.history.some((entry) => entry.outcome === "escalated") ? "Escalation recorded" : "Acknowledge and escalate"}
                   </button>
                 </div>
               )}
@@ -276,34 +326,43 @@ export default function MessagePage() {
                 aria-label="Prepared reply"
               />
               <p className="muted mt-2 text-xs">
-                Edits are recorded in the audit trail alongside the original text.
+                {approval
+                  ? "Edits submitted for approval are recorded in the audit trail alongside the original text."
+                  : a.draftDecision.outcome === "allow"
+                    ? "This suggestion is ready to copy into your mail client. Nothing is sent from this page."
+                    : "The approval request is available in Approvals when assigned to your identity."}
               </p>
               {approval && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     className="btn btn-primary"
                     onClick={() => decide("approved")}
-                    disabled={busy || approval.status === "completed"}
+                    disabled={busy || !["proposed", "awaiting_approval"].includes(approval.status)}
                   >
                     Approve and create draft
                   </button>
-                  <button className="btn btn-danger" onClick={() => decide("rejected")} disabled={busy}>
+                  <button className="btn btn-danger" onClick={() => decide("rejected")} disabled={busy || !["proposed", "awaiting_approval"].includes(approval.status)}>
                     Reject
                   </button>
                 </div>
               )}
+              {!approval && !loadError && a.draftDecision.outcome === "allow" && (
+                <button className="btn btn-primary mt-3" onClick={() => void copyDraft()} disabled={!draft.trim()}>
+                  Copy suggested draft
+                </button>
+              )}
             </Card>
           )}
 
-          {result && (
-            <Card>
-              <p className="text-sm leading-relaxed">{result}</p>
-              <Link href="/audit" className="mt-2 inline-block text-xs font-semibold" style={{ color: "var(--accent)" }}>
-                See the audit entry
-              </Link>
-            </Card>
-          )}
         </>
+      )}
+      {result && (
+        <Card>
+          <p role="status" className="text-sm leading-relaxed">{result}</p>
+          <Link href="/audit" className="mt-2 inline-block text-xs font-semibold" style={{ color: "var(--accent)" }}>
+            See the audit entry
+          </Link>
+        </Card>
       )}
     </div>
   );

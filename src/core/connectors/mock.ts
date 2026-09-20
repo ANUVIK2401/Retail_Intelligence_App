@@ -77,12 +77,19 @@ export class MockCalendarConnector implements CalendarConnector {
   }): Promise<BusyBlock[]> {
     // Returns availability only. No subject is read from the fixture because
     // the fixture has none.
-    return BUSY_BLOCKS.filter(
+    const fixture = BUSY_BLOCKS.filter(
       (b) =>
         input.personIds.includes(b.personId) &&
-        b.end > input.from &&
-        b.start < input.to,
+        Date.parse(b.end) > Date.parse(input.from) &&
+        Date.parse(b.start) < Date.parse(input.to),
     );
+    const booked: BusyBlock[] = [...store.mockEvents.values()].flatMap((event) =>
+      [...new Set([event.ownerId, ...(event.attendeeIds ?? [])])]
+        .filter((personId) => input.personIds.includes(personId) &&
+          Date.parse(event.end) > Date.parse(input.from) && Date.parse(event.start) < Date.parse(input.to))
+        .map((personId) => ({ personId, start: event.start, end: event.end, status: "busy" as const })),
+    );
+    return [...fixture, ...booked];
   }
 
   async createEvent(input: {
@@ -91,15 +98,25 @@ export class MockCalendarConnector implements CalendarConnector {
     start: string;
     end: string;
     subject: string;
-    approvalId: string;
-  }): Promise<{ eventId: string }> {
-    if (!input.approvalId) {
-      throw new Error("Refused: an event cannot be created without an approval id.");
+  } & ({ approvalId: string; policyGrantId?: never } | { approvalId?: never; policyGrantId: string })): Promise<{ eventId: string }> {
+    if (Boolean(input.approvalId) === Boolean(input.policyGrantId)) {
+      throw new Error("Refused: an event needs exactly one approval or policy grant.");
     }
+    const start = Date.parse(input.start);
+    const end = Date.parse(input.end);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) {
+      throw new Error("Refused: event time range is invalid.");
+    }
+    const participants = new Set([input.ownerId, ...input.attendeeIds]);
+    const overlaps = [...store.mockEvents.values()].some((event) =>
+      Date.parse(event.start) < end && Date.parse(event.end) > start &&
+      [event.ownerId, ...(event.attendeeIds ?? [])].some((personId) => participants.has(personId)));
+    if (overlaps) throw new Error("A participant is already booked at that time.");
     const eventId = `ev_${store.mockEvents.size + 1}`;
     store.mockEvents.set(eventId, {
       eventId,
       ownerId: input.ownerId,
+      attendeeIds: [...input.attendeeIds],
       start: input.start,
       end: input.end,
       subject: input.subject,

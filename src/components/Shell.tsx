@@ -66,12 +66,17 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const assistantCloseRef = useRef<HTMLButtonElement>(null);
   const assistantRailRef = useRef<HTMLElement>(null);
   const assistantLauncherRef = useRef<HTMLButtonElement>(null);
+  const mobileAssistantLauncherRef = useRef<HTMLButtonElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   function closeAssistant() {
     setAssistantOpen(false);
-    requestAnimationFrame(() => assistantLauncherRef.current?.focus());
+    requestAnimationFrame(() => {
+      const launcher = window.matchMedia("(max-width: 639px)").matches
+        ? mobileAssistantLauncherRef.current : assistantLauncherRef.current;
+      launcher?.focus();
+    });
   }
 
   useEffect(() => setAssistantOpen(false), [pathname]);
@@ -127,10 +132,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
         style={{ borderColor: "var(--border)", background: "var(--surface)" }}
       >
         <div className="app-brand mb-7 flex items-center gap-3 px-2 pt-2">
-          <div className="app-brand-mark" aria-hidden="true">PS</div>
+          <div className="app-brand-mark" aria-hidden="true"><span>PS</span></div>
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.14em] muted">PacSun</p>
-            <p className="truncate text-sm font-semibold">Executive Center</p>
+            <p className="app-brand-label">PacSun</p>
+            <p className="app-brand-title">Executive Command Center</p>
           </div>
         </div>
         <nav aria-label="Main navigation" className="app-nav flex-1 space-y-5">
@@ -161,8 +166,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </p>
             </div>
             <div className="flex flex-none items-center gap-1.5">
-              <Link href="/org-chart" className="mobile-org-link tap" aria-current={isActive(pathname, "/org-chart") ? "page" : undefined}>Org</Link>
               <span className="toolbar-slot"><ThemeSelector /></span>
+              <button ref={mobileAssistantLauncherRef} type="button" onClick={() => setAssistantOpen(true)} className="mobile-assistant-button tap" aria-label="Open executive assistant" aria-expanded={assistantOpen}><SparkIcon /></button>
               <button type="button" onClick={() => signOut({ callbackUrl: "/sign-in" })} className="member-signout tap" title="Sign out" aria-label="Sign out">↗</button>
             </div>
           </div>
@@ -174,13 +179,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-2">
             <p className="notice-text t-caption">
               <span className="notice-dot" aria-hidden="true" />
-              Prototype — synthetic data only. Do not enter confidential information.
+              <strong>Demo environment</strong><span className="notice-separator" aria-hidden="true" />Synthetic records only. Do not enter confidential information.
             </p>
             <span className="toolbar-slot hidden flex-none sm:inline-flex"><ThemeSelector /></span>
           </div>
         </div>
 
-        <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-4xl flex-1 px-4 pb-28 pt-4 sm:px-6 sm:pb-10">
+        <main id="main-content" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-4 pb-28 pt-4 sm:px-7 sm:pb-12 sm:pt-6">
           {children}
         </main>
 

@@ -10,7 +10,10 @@ function parseMemberMap(value: string | undefined): Map<string, string> | null {
     if (parts.length !== 2) return null;
     const [email, actorId] = parts.map((part) => part.trim().toLowerCase());
     const actor = personById(actorId);
-    if (!EMAIL.test(email) || !actor?.roles.includes("executive") || result.has(email)) return null;
+    // The named CEO assistant must be able to clear assistant-routed meetings.
+    // Other non-executive personas remain excluded from bootstrap membership.
+    const eligible = actor?.roles.some((role) => role === "executive" || role === "executive_assistant");
+    if (!EMAIL.test(email) || !eligible || result.has(email)) return null;
     result.set(email, actorId);
   }
   return result.size > 0 ? result : null;

@@ -3,19 +3,25 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { MeetingRequestSchema } from "@/core/contracts";
+import { canSeeApproval } from "@/core/access";
 import { proposeMeeting } from "@/core/services/scheduling";
 import { actorFromRequest } from "@/core/session";
-import { listProposals } from "@/core/store";
-import { DELEGATIONS } from "@/data/org";
+import { listApprovals, listProposals } from "@/core/store";
+import { DELEGATIONS, RESTRICTED_ACCESS } from "@/data/org";
 
 /** Proposals are scoped to the requester, the attendees, and auditors. */
 async function handleGET(req: Request) {
   const actor = actorFromRequest(req);
+  const visibleApprovalSubjects = new Set(listApprovals()
+    .filter((a) => a.subjectType === "meeting_proposal" &&
+      canSeeApproval(actor, a, { restrictedTopicOwners: RESTRICTED_ACCESS.confidential_strategy }))
+    .map((a) => a.subjectId));
   const proposals = listProposals().filter(
     (p) =>
       actor.roles.includes("auditor") ||
       p.request.requesterId === actor.id ||
       p.request.attendeeIds.includes(actor.id) ||
+      visibleApprovalSubjects.has(p.id) ||
       DELEGATIONS.some(
         (d) => d.delegateId === actor.id && p.request.attendeeIds.includes(d.executiveId),
       ),

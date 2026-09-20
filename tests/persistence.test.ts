@@ -82,3 +82,33 @@ test("failed database handler rolls back without persisting effects and releases
   assert.equal(fake.saved().seq, 0);
   assert.equal(fake.released(), true);
 });
+
+test("shared approvals cross member sessions while assessments stay private", async () => {
+  const rows = new Map<string, string>();
+  const db: DatabasePool = { connect: async () => ({
+    query: async (sql, values) => {
+      const id = String(values?.[0] ?? "");
+      if (sql.startsWith("INSERT INTO ecc_demo_sessions") && !rows.has(id)) rows.set(id, String(values?.[1]));
+      if (sql.startsWith("SELECT state")) return { rows: [{ state: JSON.parse(rows.get(id)!), expires_at: new Date(Date.now() + 100_000).toISOString() }] };
+      if (sql.startsWith("UPDATE ecc_demo_sessions")) rows.set(id, String(values?.[1]));
+      return { rows: [] };
+    },
+    release: () => undefined,
+  }) };
+  await runDatabaseSession("ceo", async () => {
+    store.approvals.set("approval-1", { id: "approval-1" } as never);
+    store.assessments.set("email-1", { emailId: "email-1" } as never);
+  }, db, "shared-tenant");
+  await runDatabaseSession("cfo", async () => {
+    assert.equal(store.approvals.has("approval-1"), true);
+    assert.equal(store.assessments.has("email-1"), false);
+    const approval = store.approvals.get("approval-1")!;
+    store.approvals.set("approval-1", { ...approval, status: "completed" });
+  }, db, "shared-tenant");
+  await runDatabaseSession("ceo", async () => {
+    assert.equal(store.approvals.get("approval-1")?.status, "completed");
+  }, db, "shared-tenant");
+  await runDatabaseSession("other-tenant", async () => {
+    assert.equal(store.approvals.has("approval-1"), false);
+  }, db, "another-shared-tenant");
+});

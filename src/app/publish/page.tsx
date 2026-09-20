@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PolicyDecision } from "@/core/contracts";
 import { Card, OutcomeBadge, Reason } from "@/components/primitives";
 
@@ -27,6 +28,8 @@ type ApprovalRecord = {
   decision: { approvalChain: { label: string }[] };
   history: { actorId: string; outcome: string }[];
 };
+
+type SavedDraft = { title: string; body: string; approval: ApprovalRecord };
 
 type ReviewPayload = {
   decision: PolicyDecision;
@@ -93,25 +96,35 @@ export default function PublishPage() {
     null,
   );
   const [approval, setApproval] = useState<ApprovalRecord | null>(null);
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(true);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const reviewId = useRef(0);
+  const restoreId = useRef(0);
+  const restoreScope = useRef<string | undefined>(undefined);
+  const lastLoadedDraftId = useRef<string | null>(null);
 
   const draft = DRAFTS.find((d) => d.id === draftId) ?? DRAFTS[0];
 
   const run = useCallback(
     async (
       text: string,
-      opts: { export?: boolean; requestApproval?: boolean; approvalId?: string | null } = {},
+      opts: { export?: boolean; exportUnapproved?: boolean; requestApproval?: boolean; approvalId?: string | null; title?: string } = {},
     ) => {
+      const currentReview = ++reviewId.current;
       setRunning(true);
       setError(null);
+      if (!opts.export && !opts.requestApproval) setResult(null);
       try {
         const res = await fetch("/api/publications", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({
-            title: draft.title,
+            title: opts.title ?? draft.title,
             channel: "linkedin",
             body: text,
             export: opts.export === true,
+            exportUnapproved: opts.exportUnapproved === true,
             requestApproval: opts.requestApproval === true,
             approvalId: opts.approvalId ?? null,
           }),
@@ -120,6 +133,7 @@ export default function PublishPage() {
 
         // A validation error is JSON without `checks`. Rendering it as a
         // review result crashed the page on `result.checks.map`.
+        if (currentReview !== reviewId.current) return;
         if (!res.ok || !Array.isArray(body?.checks)) {
           setError({
             kind: "checks",
@@ -128,14 +142,19 @@ export default function PublishPage() {
           return;
         }
         setResult(body);
-        if (body.approval) setApproval(body.approval);
+        setCopyNotice(null);
+        if (!opts.export) {
+          setApproval(body.approval ?? null);
+          setStep(body.approval?.currentStep ?? 0);
+        }
       } catch {
+        if (currentReview !== reviewId.current) return;
         setError({
           kind: "checks",
           message: "Could not reach the check service. The draft was not changed.",
         });
       } finally {
-        setRunning(false);
+        if (currentReview === reviewId.current) setRunning(false);
       }
     },
     [draft.title],
@@ -147,6 +166,7 @@ export default function PublishPage() {
    * increment local state, so the export claimed approvals nobody had given.
    */
   async function decide(id: string) {
+    const currentReview = reviewId.current;
     setRunning(true);
     setError(null);
     try {
@@ -156,6 +176,7 @@ export default function PublishPage() {
         body: JSON.stringify({ outcome: "approved" }),
       });
       const b = await res.json();
+      if (currentReview !== reviewId.current) return;
       if (!res.ok) {
         setError({
           kind: "approval",
@@ -166,19 +187,61 @@ export default function PublishPage() {
       setApproval(b.approval);
       setStep(b.approval?.currentStep ?? 0);
     } catch {
+      if (currentReview !== reviewId.current) return;
       setError({ kind: "approval", message: "Could not reach the approval service." });
     } finally {
-      setRunning(false);
+      if (currentReview === reviewId.current) setRunning(false);
     }
   }
 
-  useEffect(() => {
-    setStep(0);
+  const restore = useCallback(async (selectedId?: string) => {
+    const currentRestore = ++restoreId.current;
+    restoreScope.current = selectedId;
+    reviewId.current += 1;
+    setRestoring(true);
+    setRestoreError(null);
+    setError(null);
+    setResult(null);
     setApproval(null);
-    void run(DRAFTS.find((d) => d.id === draftId)?.body ?? body);
-    // Re-runs when the selected draft changes, not on every keystroke.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draftId]);
+    setStep(0);
+    setRunning(false);
+
+    const sample = DRAFTS.find((item) => item.id === selectedId) ?? DRAFTS[0];
+    const query = new URLSearchParams({ channel: "linkedin" });
+    if (selectedId) query.set("title", sample.title);
+    try {
+      const response = await fetch(`/api/publications?${query}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      const saved: SavedDraft | null = payload?.draft ?? null;
+      if (saved && (typeof saved.body !== "string" || !saved.approval?.id || typeof saved.title !== "string")) {
+        throw new Error("Invalid saved draft");
+      }
+      if (currentRestore !== restoreId.current) return;
+
+      const selected = saved
+        ? DRAFTS.find((item) => item.title === saved.title) ?? sample
+        : sample;
+      const text = saved?.body ?? selected.body;
+      lastLoadedDraftId.current = selected.id;
+      setDraftId(selected.id);
+      setBody(text);
+      void run(text, { title: selected.title, approvalId: saved?.approval.id ?? null });
+    } catch {
+      if (currentRestore === restoreId.current) {
+        setRestoreError("A saved publication review could not be checked. Retry before continuing so the current approval is preserved.");
+      }
+    } finally {
+      if (currentRestore === restoreId.current) setRestoring(false);
+    }
+  }, [run]);
+
+  useEffect(() => {
+    if (lastLoadedDraftId.current === draftId) return;
+    const isInitialLoad = lastLoadedDraftId.current === null;
+    lastLoadedDraftId.current = draftId;
+    void restore(isInitialLoad ? undefined : draftId);
+  }, [draftId, restore]);
 
   return (
     <div className="space-y-5">
@@ -199,15 +262,20 @@ export default function PublishPage() {
               className={`btn text-[11px] ${d.id === draftId ? "btn-primary" : ""}`}
               style={{ minHeight: 44 }}
               onClick={() => {
+                const isCurrentDraft = d.id === draftId;
+                if (isCurrentDraft) {
+                  void restore(d.id);
+                  return;
+                }
+                restoreId.current += 1;
+                reviewId.current += 1;
                 setDraftId(d.id);
                 setBody(d.body);
-                // Restoring a sample draft clears whatever state the previous
-                // attempt left behind, including a stale error card, and
-                // re-runs even when this draft is already selected.
                 setError(null);
+                setRestoreError(null);
                 setApproval(null);
                 setStep(0);
-                void run(d.body);
+                setResult(null);
               }}
             >
               {d.label}
@@ -220,7 +288,10 @@ export default function PublishPage() {
         <textarea
           id="draft-body"
           value={body}
+          disabled={restoring}
           onChange={(e) => {
+            reviewId.current += 1;
+            setRunning(false);
             setBody(e.target.value);
             // Editing invalidates review state: approvals belong to the text
             // that was reviewed, not to the textarea.
@@ -236,7 +307,7 @@ export default function PublishPage() {
         <button
           className="btn btn-primary mt-2"
           style={{ minHeight: 44 }}
-          disabled={running}
+          disabled={running || restoring || Boolean(restoreError)}
           onClick={() => {
             setStep(0);
             setApproval(null);
@@ -245,7 +316,35 @@ export default function PublishPage() {
         >
           {running ? "Running checks…" : "Re-run checks"}
         </button>
+        {!restoring && !restoreError && body !== draft.body && (
+          <button
+            type="button"
+            className="btn ml-2 mt-2"
+            onClick={() => {
+              restoreId.current += 1;
+              setBody(draft.body);
+              setApproval(null);
+              setStep(0);
+              void run(draft.body);
+            }}
+          >
+            Use sample text
+          </button>
+        )}
       </Card>
+
+      {restoring && (
+        <Card title="Restoring draft">
+          <p className="muted text-sm" role="status">Checking for your existing publication review…</p>
+        </Card>
+      )}
+
+      {restoreError && (
+        <Card title="Saved review unavailable">
+          <p className="text-sm" role="alert" style={{ color: "var(--high)" }}>{restoreError}</p>
+          <button type="button" className="btn mt-3" onClick={() => void restore(restoreScope.current)}>Retry recovery</button>
+        </Card>
+      )}
 
       {error && (
         <Card
@@ -256,9 +355,23 @@ export default function PublishPage() {
           </p>
           <p className="muted mt-2 text-[13px]">
             {error.kind === "approval"
-              ? "The draft and its approval are unchanged. Switch identity in the sidebar to the reviewer this step names, then approve."
-              : "Your draft is unchanged. Fix the issue above and run the checks again."}
+              ? "The reviewer named in this step must sign in with their own authorized account, then open Approvals to decide it."
+              : "Review did not complete. Check the message above and run the checks again."}
           </p>
+          {error.kind === "approval" && (
+            <Link href="/approvals" className="btn mt-3 inline-flex">Open Approvals</Link>
+          )}
+          {error.kind === "checks" && (
+            <button type="button" className="btn mt-3" disabled={running} onClick={() => void run(body)}>
+              Retry checks
+            </button>
+          )}
+        </Card>
+      )}
+
+      {running && !result && !error && (
+        <Card title="Review in progress">
+          <p className="muted text-sm" role="status">Checking the draft against publication policy…</p>
         </Card>
       )}
 
@@ -306,12 +419,21 @@ export default function PublishPage() {
                   model. Each added reviewer names the check that put them there.
                 </Reason>
                 {approval && (
-                  <p className="muted mt-2 text-[11px]">
-                    Approval {approval.id} — status {approval.status.replace(/_/g, " ")},
-                    {" "}
-                    {approval.history.filter((h) => h.outcome === "approved").length} of{" "}
-                    {approval.decision.approvalChain.length} steps cleared.
-                  </p>
+                  <div className="mt-3 rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--bg)" }}>
+                    <p className="text-[12px] font-medium">
+                      Approval {approval.id} · {approval.status.replace(/_/g, " ")}
+                    </p>
+                    <p className="muted mt-1 text-[11px]">
+                      {approval.history.filter((h) => h.outcome === "approved").length} of{" "}
+                      {approval.decision.approvalChain.length} steps cleared.
+                    </p>
+                    {approval.status !== "approved" && approval.status !== "completed" && (
+                      <p className="muted mt-2 text-[12px] leading-relaxed">
+                        The assigned reviewer can sign in with their account and complete this step in{" "}
+                        <Link href="/approvals" className="font-semibold underline underline-offset-2" style={{ color: "var(--accent)" }}>Approvals</Link>.
+                      </p>
+                    )}
+                  </div>
                 )}
                 <ol className="mt-3 space-y-2">
                   {result.chain.map((s, i) => (
@@ -377,26 +499,17 @@ export default function PublishPage() {
                       disabled={running}
                       onClick={() => void decide(approval.id)}
                     >
-                      Approve as you: {approval.decision.approvalChain[approval.currentStep]?.label ?? "final step"}
+                      Approve current step: {approval.decision.approvalChain[approval.currentStep]?.label ?? "final step"}
                     </button>
                   )}
                   <button
                     className="btn"
                     style={{ minHeight: 44 }}
                     disabled={running}
-                    onClick={() => void run(body, { export: true, approvalId: approval?.id ?? null })}
+                    onClick={() => void run(body, { export: true, exportUnapproved: true })}
                   >
                     Export as unapproved draft
                   </button>
-                  {step > 0 && (
-                    <button
-                      className="btn"
-                      style={{ minHeight: 44 }}
-                      onClick={() => setStep(0)}
-                    >
-                      Reset
-                    </button>
-                  )}
                 </div>
               </>
             )}
@@ -413,14 +526,19 @@ export default function PublishPage() {
               <button
                 className="btn mt-2"
                 style={{ minHeight: 44 }}
-                onClick={() =>
-                  navigator.clipboard
-                    ?.writeText(result.exported?.content ?? "")
-                    .catch(() => {})
-                }
+                onClick={async () => {
+                  try {
+                    if (!navigator.clipboard) throw new Error("Clipboard unavailable");
+                    await navigator.clipboard.writeText(result.exported?.content ?? "");
+                    setCopyNotice("Exported text copied.");
+                  } catch {
+                    setCopyNotice("Copy was unavailable. Select the exported text above to copy it manually.");
+                  }
+                }}
               >
                 Copy
               </button>
+              {copyNotice && <p className="muted mt-2 text-xs" role="status">{copyNotice}</p>}
             </Card>
           )}
 

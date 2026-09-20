@@ -33,11 +33,11 @@ ck "risk is medium"            '"level":"medium"'            "$R"
 ck "policy requires approval"  '"outcome":"require_approval"' "$R"
 ck "a reply was drafted"       '"suggestedReply":"'           "$R"
 AP=$(python3 -c "import sys,json;print(json.load(sys.stdin)['approval']['id'])" <<<"$R")
-R2=$(curl -s -X POST "$B/api/approvals/$AP/decide" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"outcome":"approved","editedContent":"Approved pending finance sign-off."}')
+R2=$(curl -s -X POST "$B/api/approvals/$AP/decide" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"outcome":"approved"}')
 ck "exec step clears, chain continues" '"status":"awaiting_approval"' "$R2"
 ck "no draft yet"              '"execution":null'             "$R2"
 R2b=$(curl -s -X POST "$B/api/approvals/$AP/decide" -H 'content-type: application/json' -H "$(as p_ea)" -d '{"outcome":"approved"}')
-ck "EA cannot clear finance step" 'not assigned to that review domain' "$R2b"
+ck "EA cannot see finance approval" 'Unknown approval request' "$R2b"
 R2c=$(curl -s -X POST "$B/api/approvals/$AP/decide" -H 'content-type: application/json' -H "$(as p_cfo)" -d '{"outcome":"approved"}')
 ck "draft created, not sent"   'outlook_draft_created'        "$R2c"
 
@@ -52,6 +52,10 @@ ck "slots were produced"       '"slots":\[{'                  "$S"
 ck "no meeting subject leaked" '"rationale"'                  "$S"
 if grep -q '"subject"' <<<"$(python3 -c "import sys,json;d=json.load(sys.stdin);print(json.dumps(d['proposal']['slots']))" <<<"$S")"; then
   echo "  FAIL  free/busy carries no subject"; FAIL=$((FAIL+1)); else echo "  PASS  free/busy carries no subject"; PASS=$((PASS+1)); fi
+SAP_ROUTE=$(python3 -c "import sys,json;print(json.load(sys.stdin)['approval']['id'])" <<<"$S")
+ck "CEO cannot bypass assistant confirmation" 'delegated executive assistant' "$(curl -s -X POST "$B/api/approvals/$SAP_ROUTE/decide" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"outcome":"approved","slotIndex":0}')"
+ck "named assistant clears first step" '"status":"awaiting_approval"' "$(curl -s -X POST "$B/api/approvals/$SAP_ROUTE/decide" -H 'content-type: application/json' -H "$(as p_ea)" -d '{"outcome":"approved","slotIndex":0}')"
+ck "CEO completes routed booking" 'calendar_event_created' "$(curl -s -X POST "$B/api/approvals/$SAP_ROUTE/decide" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"outcome":"approved","slotIndex":0}')"
 
 D=$(curl -s -X POST "$B/api/meeting-proposals" -H 'content-type: application/json' -H "$(as p_ceo)" \
   -d "{\"requesterId\":\"p_coo\",\"attendeeIds\":[\"p_ceo\"],\"purpose\":\"1:1 move\",\"durationMinutes\":30,\"sensitivity\":\"normal\",\"earliest\":\"$FROM\",\"latest\":\"$TO\"}")
@@ -107,9 +111,10 @@ XP=$(curl -s -X POST "$B/api/publications" -H 'content-type: application/json' -
 XAP=$(python3 -c "import sys,json;print(json.load(sys.stdin).get('approval',{}).get('id',''))" <<<"$XP")
 curl -s -X POST "$B/api/approvals/$XAP/decide" -H 'content-type: application/json' -H "$(as p_cmo)" -d '{"outcome":"approved"}' >/dev/null
 XG=$(curl -s -w '\n%{http_code}' -X POST "$B/api/approvals/$XAP/decide" -H 'content-type: application/json' -H "$(as p_gc)" -d '{"outcome":"approved"}')
-ck "one executive cannot clear another's step" '403'               "$XG"
-ck "the refusal names the owner"               "Maya Hollis"       "$XG"
+ck "one executive cannot clear another's step" '404'               "$XG"
+ck "the refusal reveals no owner"              'Unknown approval request' "$XG"
 ck "the owner can clear their own step"        '"status":"completed"' "$(curl -s -X POST "$B/api/approvals/$XAP/decide" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"outcome":"approved"}')"
+ck "explicit draft export stays unapproved after approval" 'Status: DRAFT' "$(curl -s -X POST "$B/api/publications" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"title":"Denim launch","channel":"linkedin","body":"We started collecting old denim in 2023 and in the first year we threw a fifth of it away.","export":true,"exportUnapproved":true}')"
 
 echo "== Invariant rules cannot be disabled =="
 V=$(curl -s -X POST "$B/api/policies" -H 'content-type: application/json' -H "$(as p_cdio)" -d '{"ruleId":"P-NO-AUTOSEND","enabled":false}')
@@ -259,7 +264,7 @@ ck "F6 short draft is a 400"           '400'                       "$(curl -s -o
 ck "F6 the 400 explains itself"        'at least twenty'           "$(curl -s -X POST "$B/api/publications" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"title":"x","channel":"linkedin","body":"short"}')"
 
 echo "== Publication approval is real =="
-PR=$(curl -s -X POST "$B/api/publications" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"title":"Denim launch","channel":"linkedin","body":"We started collecting old denim in 2023 and in the first year we threw a fifth of it away.","requestApproval":true}')
+PR=$(curl -s -X POST "$B/api/publications" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"title":"Denim launch review handoff","channel":"linkedin","body":"We started collecting old denim in 2023 and in the first year we threw a fifth of it away.","requestApproval":true}')
 PAP=$(python3 -c "import sys,json;print(json.load(sys.stdin).get('approval',{}).get('id',''))" <<<"$PR")
 ck "review request creates an approval" '"status":"awaiting_approval"' "$PR"
 ck "an outsider cannot clear it"       '403'                       "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$B/api/approvals/$PAP/decide" -H 'content-type: application/json' -H "$(as p_auditor)" -d '{"outcome":"approved"}')"
@@ -281,6 +286,7 @@ ck "F7 a failed booking is not silently retried" 'can no longer be decided' "$AG
 SOK=$(curl -s -X POST "$B/api/meeting-proposals" -H 'content-type: application/json' -H "$(as p_ceo)" \
   -d "{\"requesterId\":\"p_coo\",\"attendeeIds\":[\"p_ceo\"],\"purpose\":\"Valid slot\",\"durationMinutes\":30,\"sensitivity\":\"confidential\",\"earliest\":\"$FROM\",\"latest\":\"$TO\"}")
 SOKAP=$(python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('approval',{}).get('id',''))" <<<"$SOK")
+ck "meeting approval requires an explicit slot" 'Choose a proposed meeting time' "$(curl -s -X POST "$B/api/approvals/$SOKAP/decide" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"outcome":"approved"}')"
 ck "F7 a valid slot does book an event" 'calendar_event_created' "$(curl -s -X POST "$B/api/approvals/$SOKAP/decide" -H 'content-type: application/json' -H "$(as p_ceo)" -d '{"outcome":"approved","slotIndex":0}')"
 
 UNREL=$(curl -s -w '\n%{http_code}' -X POST "$B/api/meeting-proposals" -H 'content-type: application/json' -H "$(as p_auditor)" -d "{\"requesterId\":\"p_coo\",\"attendeeIds\":[\"p_cfo\"],\"purpose\":\"x\",\"durationMinutes\":30,\"sensitivity\":\"normal\",\"earliest\":\"$FROM\",\"latest\":\"$TO\"}")

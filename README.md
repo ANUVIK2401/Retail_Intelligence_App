@@ -1,7 +1,8 @@
 # Executive Command Center
 
-Mobile-first executive assistant prototype, built for the discussion with
-Prof. Ben Lee and the prospective client.
+An executive decision workspace for a PacSun leadership walkthrough. The
+prototype brings communication, scheduling, approvals, and grounded insights
+into one governed view.
 
 > The AI analyzes and proposes. Authentication, deterministic policy, and human
 > approval control every consequential action.
@@ -18,7 +19,7 @@ AUTH_MODE=demo npm run dev  # localhost-only synthetic role-test mode
 
 Local development can use synthetic mode without a database, Google account,
 or AI key. This mode is refused in production. Normal member access uses
-Google sign-in and an explicit executive email-to-persona mapping.
+Google sign-in and an explicit member email-to-persona mapping.
 
 To use a live provider, explicitly set `AI_PROVIDER`, its API key, and its
 model ID (see `.env.example`). Keys alone do not switch off the mock provider.
@@ -40,7 +41,7 @@ web-client credentials (`AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`), a random
 32-character-or-longer `AUTH_SECRET`, and `EXECUTIVE_MEMBER_MAP` (for example,
 `member@example.com:p_ceo`). In Google Cloud Console, register the exact
 redirect URI `https://your-domain/api/auth/callback/google`. Only verified
-Google addresses explicitly mapped to synthetic executive personas can enter.
+Google addresses explicitly mapped to synthetic executive or named assistant personas can enter.
 There is no public role switcher. See [ADR-0008](docs/decisions/ADR-0008-google-executive-access.md).
 
 Leave `AI_PROVIDER=mock` for a deterministic demo, or set `AI_PROVIDER=openai`
@@ -57,7 +58,7 @@ check that `/api/health` responds with `{"status":"ok","durable":true}`.
 Then sign in as a mapped executive and walk through the inbox, meeting,
 assistant, org hierarchy, and approval flows on the real URL.
 
-The automated 115-check script uses a localhost-only test identity mechanism:
+The automated demo verification script uses a localhost-only test identity mechanism:
 
 ```bash
 AUTH_MODE=demo npm run dev
@@ -83,10 +84,12 @@ approving a blocked matter, and disabling an invariant rule.
 
 ## The demo, in four scenes
 
+Presenter walkthrough: **[docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md)**.
+
 1. **Routine approval.** Assess the DC throughput email. Medium risk, with the
-   reason shown. Edit a phrase, approve as CEO, see that the chain is not
-   finished, sign in as the mapped CFO, clear it. A draft is created in the mailbox and
-   is not sent.
+   reason shown. Clear the CEO step, see that the chain is not finished, then
+   sign in as the mapped CFO to clear finance review. A simulated mailbox draft
+   is created and is not sent. Editing a proposed reply restarts its approval chain.
 2. **Hierarchy-aware scheduling.** Request time as a director three levels below
    the CEO. The system routes through the named executive assistant and explains
    why. Three times across three days, from free/busy only. Switch the requester

@@ -3,20 +3,20 @@
 :root {
   /* Apple-style neutral canvas: the grey recedes, content carries the colour.
      Elevation and hairlines do the separating, not heavy 1px boxes. */
-  --bg: #f5f5f7;
+  --bg: #f3f5f3;
   --surface: #ffffff;
   --surface-raised: #ffffff;
   color-scheme: light;
-  --border: #d9d9de;
+  --border: #d8e0df;
   --hairline: rgba(0, 0, 0, 0.07);
-  --text: #1d1d1f;
-  --muted: #6e6e73;
+  --text: #172a30;
+  --muted: #617278;
   /* Deepened from the PacSun tone so 11px labels still clear WCAG AA. */
-  --accent: #0a5cab;
-  --accent-soft: rgba(10, 92, 171, 0.10);
+  --accent: #126583;
+  --accent-soft: rgba(18, 101, 131, 0.10);
   --on-accent: #ffffff;
-  --brand-sun: #f2a03d;
-  --brand-surf: #0a7ea4;
+  --brand-sun: #e2a05f;
+  --brand-surf: #168fa3;
   /* Layered shadows. Two stops each: a tight contact shadow plus a soft
      ambient one, which is what makes a surface read as lifted rather than
      outlined. */
@@ -26,8 +26,8 @@
   --material: rgba(255, 255, 255, 0.72);
   /* Top-edge highlight and the recessed fill used by rows inside a card. */
   --specular: rgba(255, 255, 255, 0.9);
-  --sunken: #fafafc;
-  --tint-veil: rgba(10, 92, 171, 0.035);
+  --sunken: #f7f9f8;
+  --tint-veil: rgba(18, 101, 131, 0.035);
   /* Apple's easing. Motion decelerates rather than running at constant speed. */
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
   --radius-sm: 10px;
@@ -62,27 +62,27 @@
   color-scheme: dark;
   /* True dark, not navy. Surfaces lift by getting lighter, the way they do in
      macOS, rather than by drawing a brighter outline. */
-  --bg: #000000;
-  --surface: #1c1c1e;
-  --surface-raised: #2c2c2e;
-  --border: #38383a;
+  --bg: #0a171c;
+  --surface: #10232a;
+  --surface-raised: #19343c;
+  --border: #29444c;
   --hairline: rgba(255, 255, 255, 0.10);
-  --text: #f5f5f7;
-  --muted: #98989d;
+  --text: #eef5f3;
+  --muted: #a3b4b8;
   /* Lightened for dark surfaces; the light-mode blue fails contrast here. */
-  --accent: #6cb9ff;
-  --accent-soft: rgba(108, 185, 255, 0.16);
-  --on-accent: #00182e;
+  --accent: #79c6d8;
+  --accent-soft: rgba(121, 198, 216, 0.16);
+  --on-accent: #071c24;
   --brand-sun: #ffc477;
-  --brand-surf: #6fc3e8;
+  --brand-surf: #78d1dd;
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
   --shadow-md: 0 2px 8px rgba(0,0,0,0.55), 0 12px 32px rgba(0,0,0,0.45);
   --shadow-lg: 0 10px 28px rgba(0,0,0,0.6), 0 28px 64px rgba(0,0,0,0.5);
-  --material: rgba(28, 28, 30, 0.74);
+  --material: rgba(16, 35, 42, 0.8);
   /* In dark mode the highlight is a faint white edge, not a glow. */
   --specular: rgba(255, 255, 255, 0.11);
-  --sunken: #232325;
-  --tint-veil: rgba(108, 185, 255, 0.05);
+  --sunken: #162d34;
+  --tint-veil: rgba(121, 198, 216, 0.05);
   --low: #78e1b0;
   --low-bg: #142e24;
   --medium: #ffd083;
@@ -98,27 +98,27 @@
   color-scheme: dark;
   /* True dark, not navy. Surfaces lift by getting lighter, the way they do in
      macOS, rather than by drawing a brighter outline. */
-  --bg: #000000;
-  --surface: #1c1c1e;
-  --surface-raised: #2c2c2e;
-  --border: #38383a;
+  --bg: #0a171c;
+  --surface: #10232a;
+  --surface-raised: #19343c;
+  --border: #29444c;
   --hairline: rgba(255, 255, 255, 0.10);
-  --text: #f5f5f7;
-  --muted: #98989d;
+  --text: #eef5f3;
+  --muted: #a3b4b8;
   /* Lightened for dark surfaces; the light-mode blue fails contrast here. */
-  --accent: #6cb9ff;
-  --accent-soft: rgba(108, 185, 255, 0.16);
-  --on-accent: #00182e;
+  --accent: #79c6d8;
+  --accent-soft: rgba(121, 198, 216, 0.16);
+  --on-accent: #071c24;
   --brand-sun: #ffc477;
-  --brand-surf: #6fc3e8;
+  --brand-surf: #78d1dd;
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
   --shadow-md: 0 2px 8px rgba(0,0,0,0.55), 0 12px 32px rgba(0,0,0,0.45);
   --shadow-lg: 0 10px 28px rgba(0,0,0,0.6), 0 28px 64px rgba(0,0,0,0.5);
-  --material: rgba(28, 28, 30, 0.74);
+  --material: rgba(16, 35, 42, 0.8);
   /* In dark mode the highlight is a faint white edge, not a glow. */
   --specular: rgba(255, 255, 255, 0.11);
-  --sunken: #232325;
-  --tint-veil: rgba(108, 185, 255, 0.05);
+  --sunken: #162d34;
+  --tint-veil: rgba(121, 198, 216, 0.05);
   --low: #78e1b0;
   --low-bg: #142e24;
   --medium: #ffd083;
@@ -395,18 +395,24 @@ nav a:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
   box-shadow: 1px 0 0 color-mix(in srgb, var(--border) 45%, transparent);
 }
 .app-brand-mark {
+  position: relative;
   display: grid;
   flex: none;
-  height: 36px;
-  width: 36px;
+  height: 42px;
+  width: 42px;
   place-items: center;
-  border-radius: 11px;
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: 17px;
+  overflow: hidden;
+  border-radius: 13px;
+  background: #153847;
+  color: #f2faf8;
+  font-size: 16px;
   font-weight: 800;
   letter-spacing: -0.1em;
 }
+.app-brand-mark::after { content: ""; position: absolute; right: -9px; bottom: -10px; width: 28px; height: 28px; border: 5px solid #dba268; border-radius: 50%; opacity: .85; }
+.app-brand-mark span { position: relative; z-index: 1; }
+.app-brand-label { color: var(--accent); font-size: 10px; font-weight: 800; letter-spacing: .19em; text-transform: uppercase; }
+.app-brand-title { max-width: 155px; color: var(--text); font-size: 12px; font-weight: 700; line-height: 1.18; letter-spacing: -.015em; }
 .app-nav-label {
   margin: 0 0 7px 12px;
   color: var(--muted);
@@ -452,6 +458,8 @@ nav a:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
   cursor: pointer;
 }
 .member-signout:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); }
+.mobile-assistant-button { display: inline-flex; width: 44px; min-height: 44px; align-items: center; justify-content: center; border: 1px solid var(--hairline); border-radius: 12px; background: var(--accent-soft); color: var(--accent); cursor: pointer; }
+.mobile-assistant-button:hover { background: color-mix(in srgb, var(--accent) 17%, transparent); }
 .mobile-org-link,
 .mobile-signout {
   display: inline-flex;
@@ -582,7 +590,7 @@ nav a:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 }
 .assistant-launcher:hover { filter: brightness(0.93); }
 @media (min-width: 640px) { .assistant-launcher { bottom: 20px; } }
-@media (min-width: 1280px) {
+@media (min-width: 1700px) {
   .assistant-rail {
     position: sticky;
     top: 0;
@@ -870,7 +878,7 @@ nav a:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
    ========================================================================= */
 .notice-bar {
   border-color: var(--hairline);
-  background: color-mix(in srgb, var(--medium) 5%, var(--surface));
+  background: color-mix(in srgb, var(--surface) 94%, var(--brand-surf));
 }
 .notice-text {
   display: flex;
@@ -880,15 +888,17 @@ nav a:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
   /* --muted on the amber notice surface measures 4.12:1, under the 4.5 AA
      threshold for 13px text. Mixing toward --text lifts it clear while the
      line still reads as secondary. */
-  color: color-mix(in srgb, var(--muted) 62%, var(--text));
+  color: var(--muted);
 }
+.notice-text strong { color: var(--text); font-size: 10px; font-weight: 750; letter-spacing: .11em; text-transform: uppercase; white-space: nowrap; }
+.notice-separator { height: 12px; width: 1px; flex: none; background: var(--border); }
 .notice-dot {
   height: 6px;
   width: 6px;
   flex: none;
   border-radius: 50%;
-  background: var(--medium);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--medium) 18%, transparent);
+  background: var(--brand-surf);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-surf) 18%, transparent);
 }
 
 /* ===========================================================================
@@ -1125,4 +1135,191 @@ nav a:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
   font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
   font-size: var(--text-micro);
   line-height: 1.4;
+}
+
+/* Executive overview. The dark canvas gives the day one clear starting point;
+   the rest of the workspace stays quiet enough for actual decisions. */
+.overview-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 26px;
+  padding: clamp(22px, 3.5vw, 38px);
+  background: linear-gradient(122deg, #102b38 0%, #173f4b 57%, #1b5261 100%);
+  box-shadow: 0 3px 8px rgba(7, 34, 45, .1), 0 24px 56px rgba(7, 34, 45, .13);
+  color: #f4fbf9;
+}
+.overview-hero::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -66% -8% auto auto;
+  width: min(68vw, 720px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 50%;
+  box-shadow: 0 0 0 95px rgba(255, 255, 255, .035), 0 0 0 190px rgba(255, 255, 255, .025);
+}
+.overview-hero::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: auto -8% -50% auto;
+  width: 45%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(226, 160, 95, .14), transparent 70%);
+}
+.overview-hero-top,
+.priority-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.overview-kicker,
+.overview-role,
+.overview-date,
+.priority-index,
+.brief-number {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+.overview-kicker { display: inline-flex; align-items: center; gap: 10px; color: #bfe6e8; }
+.overview-kicker-mark { width: 20px; height: 1px; background: #e2a05f; }
+.overview-date { color: #c5d8dc; letter-spacing: .05em; text-align: right; }
+.overview-hero-copy { margin: clamp(28px, 4vw, 48px) 0 clamp(26px, 4vw, 42px); max-width: 680px; }
+.overview-role { color: #efb87a; }
+.overview-hero .t-display { font-size: clamp(36px, 4.5vw, 58px); letter-spacing: -.047em; font-weight: 650; }
+.overview-intro { max-width: 570px; margin-top: 15px; color: #d4e3e4; font-size: 15px; line-height: 1.55; }
+.overview-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+.overview-stats .stat {
+  min-width: 0;
+  border-color: rgba(255,255,255,.16);
+  border-radius: 14px;
+  background: rgba(255,255,255,.085);
+  box-shadow: none;
+  backdrop-filter: blur(6px);
+  padding: 14px 15px;
+}
+.overview-stats .stat:hover { background: rgba(255,255,255,.13); box-shadow: none; }
+.overview-stats .stat::after { background: var(--stat-tone, rgba(255,255,255,.28)); height: 2px; }
+.overview-stats .stat-high { --stat-tone: #f3a6a7; }
+.overview-stats .stat-medium { --stat-tone: #f2c185; }
+.overview-stats .stat-value { color: #fff; font-size: 32px; }
+.overview-stats .stat-label { color: #d4e4e4; font-size: 10px; }
+
+.overview-grid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
+.overview-grid > .card { min-width: 0; padding: clamp(18px, 2vw, 25px); }
+.overview-grid .card-head { margin-bottom: 18px; }
+.overview-grid .card-head h2 { font-size: 18px; }
+.priority-feature {
+  display: block;
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--hairline));
+  border-radius: 18px;
+  padding: clamp(18px, 2.4vw, 27px);
+  background: radial-gradient(90% 120% at 100% 0%, color-mix(in srgb, var(--brand-surf) 11%, transparent), transparent 75%), var(--sunken);
+  transition: transform .28s var(--ease), border-color .28s var(--ease), box-shadow .28s var(--ease);
+}
+.priority-feature:hover { transform: translateY(-2px); border-color: var(--accent); box-shadow: var(--shadow-md); }
+.priority-index { color: var(--accent); margin-right: 3px; }
+.priority-time { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.priority-title { max-width: 660px; margin: 20px 0 25px; font-size: clamp(20px, 2.5vw, 29px); line-height: 1.18; letter-spacing: -.03em; }
+.priority-bottom { padding-top: 16px; border-top: 1px solid var(--hairline); color: var(--muted); font-size: 13px; }
+.priority-action,
+.decision-row-action { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.priority-feature:hover .priority-action svg,
+.decision-row:hover .decision-row-action svg { transform: translateX(3px); }
+.priority-action svg,
+.decision-row-action svg { transition: transform .25s var(--ease); }
+.priority-list { margin-top: 9px; }
+.priority-list li + li { border-top: 1px solid var(--hairline); }
+.priority-row { display: flex; align-items: center; gap: 14px; padding: 14px 3px; border-radius: 8px; }
+.priority-row:hover,
+.routine-row:hover { background: var(--accent-soft); }
+.priority-row-number { color: var(--accent); font-size: 11px; font-weight: 750; letter-spacing: .1em; }
+.priority-row-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 2px; }
+.priority-row-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 650; }
+.priority-row > svg { flex: none; color: var(--muted); }
+.decision-list { display: grid; gap: 9px; }
+.decision-row { display: block; border: 1px solid var(--hairline); border-radius: 13px; padding: 15px; background: var(--sunken); transition: border-color .2s, background .2s; }
+.decision-row:hover { border-color: var(--accent); background: var(--accent-soft); }
+.decision-row-action { margin-top: 11px; }
+.decision-empty { padding: 20px 5px; text-align: center; }
+.decision-empty-icon { display: inline-grid; width: 46px; height: 46px; place-items: center; border: 1px solid var(--hairline); border-radius: 15px; background: var(--sunken); color: var(--accent); font-size: 23px; }
+.decision-empty .card-link { margin-top: 16px; }
+.brief-list { display: grid; gap: 19px; }
+.brief-story { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 11px; }
+.brief-story + .brief-story { border-top: 1px solid var(--hairline); padding-top: 18px; }
+.brief-number { color: var(--accent); padding-top: 2px; }
+.brief-headline { font-size: 16px; line-height: 1.3; letter-spacing: -.02em; }
+.routine-row { display: flex; align-items: center; min-width: 0; gap: 13px; border-radius: 8px; padding: 12px 8px; transition: background .2s; }
+.routine-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 570; }
+.routine-time { white-space: nowrap; }
+.routine-row > svg { color: var(--muted); flex: none; }
+.load-error { padding: 32px; }
+@media (min-width: 980px) {
+  .overview-grid { grid-template-columns: minmax(0, 1.24fr) minmax(0, .9fr); align-items: start; }
+  .overview-priority { grid-column: 1; grid-row: 1 / 3; }
+  .overview-approvals { grid-column: 2; grid-row: 1; }
+  .overview-brief { grid-column: 2; grid-row: 2 / 4; }
+  .overview-routine { grid-column: 1; grid-row: 3; }
+  .overview-activity { grid-column: 1 / -1; }
+}
+@media (max-width: 680px) {
+  .overview-hero { border-radius: 21px; }
+  .overview-date { display: none; }
+  .overview-hero-copy { margin-top: 35px; }
+  .overview-hero .t-display { font-size: clamp(33px, 9vw, 42px); }
+  .overview-intro { font-size: 14px; }
+  .overview-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .priority-row { gap: 9px; }
+  .routine-time { display: none; }
+}
+@media (max-width: 639px) {
+  .assistant-launcher { display: none; }
+}
+
+/* Sign in uses the same ink, surf and sun palette as the executive overview. */
+.sign-in-page { min-height: 100dvh; padding: clamp(12px, 2vw, 28px); background: var(--bg); }
+.sign-in-frame { display: grid; min-height: calc(100dvh - clamp(24px, 4vw, 56px)); max-width: 1500px; margin: auto; overflow: hidden; border: 1px solid var(--hairline); border-radius: 24px; background: var(--surface); box-shadow: var(--shadow-lg); }
+.sign-in-story { position: relative; isolation: isolate; display: flex; min-height: 430px; flex-direction: column; justify-content: space-between; overflow: hidden; padding: clamp(28px, 5vw, 64px); background: linear-gradient(145deg, #102b38 0%, #184c59 60%, #206270 100%); color: #f3fbf9; }
+.sign-in-story::before { content: ""; position: absolute; z-index: -1; width: 760px; height: 760px; right: -350px; top: -335px; border: 1px solid rgba(255,255,255,.1); border-radius: 50%; box-shadow: 0 0 0 90px rgba(255,255,255,.035), 0 0 0 180px rgba(255,255,255,.027), 0 0 0 270px rgba(255,255,255,.017); }
+.sign-in-story::after { content: ""; position: absolute; z-index: -1; right: -10%; bottom: -30%; width: 72%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, rgba(230,161,94,.25), transparent 70%); }
+.sign-in-brand { display: flex; align-items: center; gap: 13px; font-size: 11px; font-weight: 700; letter-spacing: .17em; text-transform: uppercase; }
+.sign-in-brand strong { display: block; margin-top: 4px; color: #b7d8de; font-size: 10px; font-weight: 550; letter-spacing: .06em; }
+.sign-in-mark { display: grid; width: 43px; height: 43px; place-items: center; border: 1px solid rgba(255,255,255,.4); border-radius: 13px; font-size: 17px; font-weight: 800; letter-spacing: -.1em; }
+.sign-in-story-content { max-width: 660px; margin: 60px 0; }
+.sign-in-kicker { margin-bottom: 18px; color: #f0c18c; font-size: 11px; font-weight: 750; letter-spacing: .18em; text-transform: uppercase; }
+.sign-in-story h1 { max-width: 650px; font-size: clamp(43px, 5vw, 75px); font-weight: 620; line-height: 1.03; letter-spacing: -.057em; }
+.sign-in-lede { max-width: 480px; margin-top: 24px; color: #d2e3e3; font-size: 16px; line-height: 1.58; }
+.sign-in-capabilities { display: grid; gap: 10px; grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 710px; border-top: 1px solid rgba(255,255,255,.25); padding-top: 20px; }
+.sign-in-capabilities span { color: #9ec5cc; font-size: 12px; }
+.sign-in-capabilities strong { color: #fff; font-weight: 700; }
+.sign-in-entry { display: flex; flex-direction: column; justify-content: center; padding: clamp(28px, 5vw, 65px); }
+.sign-in-entry-inner { width: 100%; max-width: 390px; margin: auto; }
+.sign-in-entry h2 { margin-top: 16px; font-size: clamp(29px, 3vw, 41px); font-weight: 650; line-height: 1.12; letter-spacing: -.042em; }
+.sign-in-button { justify-content: space-between; width: 100%; min-height: 52px; margin-top: 38px; font-size: 14px; }
+.sign-in-button span { font-size: 21px; font-weight: 400; }
+.sign-in-config-note { margin-top: 35px; border: 1px solid var(--border); border-radius: 12px; background: var(--sunken); padding: 16px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.sign-in-trust { display: flex; gap: 11px; margin-top: 35px; border-top: 1px solid var(--hairline); padding-top: 22px; }
+.sign-in-trust-icon { display: grid; width: 24px; height: 24px; flex: none; place-items: center; border-radius: 8px; background: var(--accent-soft); color: var(--accent); font-size: 18px; }
+.sign-in-trust p { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.sign-in-footer { margin-top: 45px; color: var(--muted); font-size: 11px; text-align: center; }
+@media (min-width: 900px) { .sign-in-frame { grid-template-columns: minmax(0, 1.15fr) minmax(385px, .85fr); } }
+@media (max-width: 899px) { .sign-in-story { min-height: 470px; } }
+@media (max-width: 600px) {
+  .sign-in-page { padding: 0; }
+  .sign-in-frame { min-height: 100dvh; border: 0; border-radius: 0; }
+  .sign-in-story { min-height: 390px; padding: 27px 25px; }
+  .sign-in-story-content { margin: 45px 0 35px; }
+  .sign-in-story h1 { font-size: clamp(40px, 12vw, 56px); }
+  .sign-in-lede { margin-top: 17px; font-size: 14px; }
+  .sign-in-capabilities { gap: 5px; padding-top: 13px; }
+  .sign-in-capabilities span { font-size: 10px; line-height: 1.4; }
+  .sign-in-entry { padding: 40px 25px; }
+  .sign-in-footer { margin-top: 35px; }
 }

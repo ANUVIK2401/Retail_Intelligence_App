@@ -11,7 +11,7 @@ import {
 import { evaluatePolicy } from "@/core/policy/engine";
 import { INJECTION_PATTERNS, evaluateDeterministicRisk } from "@/core/risk/rules";
 import { canReadMessage, safeAuditLabel } from "@/core/access";
-import { nextId, recordAudit, saveApproval, saveAssessment, store } from "@/core/store";
+import { listApprovals, nextId, recordAudit, saveApproval, saveAssessment, store } from "@/core/store";
 import { personById } from "@/data/org";
 
 const mail = new MockMailConnector();
@@ -145,6 +145,21 @@ export async function assessEmail(input: {
     }
   }
 
+  const pending = listApprovals().find((a) =>
+    a.subjectType === "email_draft" && a.subjectId === email.id &&
+    a.requestedFor === email.mailboxOwnerId && a.status === "awaiting_approval",
+  );
+  const sameReview = pending?.risk === risk.level &&
+    pending.decision.outcome === draftDecision.outcome &&
+    pending.decision.policyVersion === draftDecision.policyVersion &&
+    JSON.stringify(pending.decision.approvalChain) === JSON.stringify(draftDecision.approvalChain);
+  if (pending && !sameReview) saveApproval({ ...pending, status: "expired" });
+  if (pending && sameReview && draftDecision.outcome === "require_approval") {
+    // A refresh must never silently replace words already placed before a
+    // reviewer. The existing approval remains the source of truth.
+    suggestedReply = pending.proposedContent;
+  }
+
   /*
    * Presenting injected text back to the executive as a legitimate "requested
    * of you" item is itself an attack: it launders the instruction through the
@@ -201,47 +216,51 @@ export async function assessEmail(input: {
     draftDecision.outcome === "require_approval" ||
     draftDecision.outcome === "block_and_escalate"
   ) {
-    approval = saveApproval({
-      id: nextId("ap"),
-      action: draftDecision.outcome === "block_and_escalate" ? "email.send" : "email.draft",
-      subjectType: "email_draft",
-      subjectId: email.id,
-      title:
-        draftDecision.outcome === "block_and_escalate"
-          ? `Escalation: ${email.subject}`
-          : `Reply to ${sender?.name ?? "sender"}: ${email.subject}`,
-      proposedContent:
-        suggestedReply ??
-        "No reply was drafted. This matter is escalated for a person to handle directly.",
-      risk: risk.level,
-      decision: draftDecision,
-      currentStep: 0,
-      status: "awaiting_approval",
-      contentVersion: 0,
-      executionClaimed: false,
-      requestedFor: email.mailboxOwnerId,
-      createdAt: new Date().toISOString(),
-      history: [],
-    });
+    if (pending && sameReview) {
+      approval = pending;
+    } else {
+      approval = saveApproval({
+        id: nextId("ap"),
+        action: draftDecision.outcome === "block_and_escalate" ? "email.send" : "email.draft",
+        subjectType: "email_draft",
+        subjectId: email.id,
+        title:
+          draftDecision.outcome === "block_and_escalate"
+            ? `Escalation: ${email.subject}`
+            : `Reply to ${sender?.name ?? "sender"}: ${email.subject}`,
+        proposedContent:
+          suggestedReply ??
+          "No reply was drafted. This matter is escalated for a person to handle directly.",
+        risk: risk.level,
+        decision: draftDecision,
+        currentStep: 0,
+        status: "awaiting_approval",
+        contentVersion: 0,
+        executionClaimed: false,
+        requestedFor: email.mailboxOwnerId,
+        createdAt: new Date().toISOString(),
+        history: [],
+      });
 
-    recordAudit({
-      correlationId,
-      actorId: input.actorId,
-      actorRole: actor.roles[0] ?? "executive",
-      action:
-        draftDecision.outcome === "block_and_escalate"
-          ? "approval.escalated"
-          : "approval.requested",
-      resourceType: "approval",
-      resourceId: approval.id,
-      outcome: "awaiting_approval",
-      risk: risk.level,
-      policyVersion: draftDecision.policyVersion,
-      matchedRules: draftDecision.matchedRules,
-      aiModel: null,
-      promptVersion: null,
-      detail: draftDecision.reason,
-    });
+      recordAudit({
+        correlationId,
+        actorId: input.actorId,
+        actorRole: actor.roles[0] ?? "executive",
+        action:
+          draftDecision.outcome === "block_and_escalate"
+            ? "approval.escalated"
+            : "approval.requested",
+        resourceType: "approval",
+        resourceId: approval.id,
+        outcome: "awaiting_approval",
+        risk: risk.level,
+        policyVersion: draftDecision.policyVersion,
+        matchedRules: draftDecision.matchedRules,
+        aiModel: null,
+        promptVersion: null,
+        detail: draftDecision.reason,
+      });
+    }
   }
 
   return { assessment, approval };

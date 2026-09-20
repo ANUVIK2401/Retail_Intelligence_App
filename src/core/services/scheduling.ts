@@ -8,6 +8,7 @@ import type {
 } from "@/core/contracts";
 import { evaluatePolicy } from "@/core/policy/engine";
 import {
+  getProposal,
   nextId,
   recordAudit,
   saveApproval,
@@ -15,7 +16,7 @@ import {
   store,
 } from "@/core/store";
 import { PROTECTED_BLOCKS } from "@/data/calendar";
-import { personById } from "@/data/org";
+import { DELEGATIONS, personById } from "@/data/org";
 
 const calendar = new MockCalendarConnector();
 
@@ -136,6 +137,61 @@ export async function proposeMeeting(input: {
   }
 
   return { proposal, approval };
+}
+
+export class MeetingBookingError extends Error {
+  readonly status: 400 | 403 | 404 | 409;
+  constructor(message: string, status: 400 | 403 | 404 | 409) {
+    super(message);
+    this.status = status;
+  }
+}
+
+/** Book a chosen slot when both proposal and write policy explicitly allow it. */
+export async function bookAllowedMeeting(input: { actorId: string; proposalId: string; slotIndex: number }) {
+  const proposal = getProposal(input.proposalId);
+  if (!proposal) throw new MeetingBookingError("Meeting proposal not found.", 404);
+  const { request } = proposal;
+  const ownerId = request.attendeeIds[0];
+  const maySee = input.actorId === request.requesterId || request.attendeeIds.includes(input.actorId) ||
+    DELEGATIONS.some((d) => d.delegateId === input.actorId && request.attendeeIds.includes(d.executiveId));
+  if (!maySee) throw new MeetingBookingError("You are not authorized to book this meeting.", 403);
+  if (proposal.status !== "proposed") throw new MeetingBookingError("This meeting has already been booked or is awaiting review.", 409);
+  if (proposal.decision.outcome !== "allow") throw new MeetingBookingError("This meeting requires approval before booking.", 409);
+  const slot = Number.isInteger(input.slotIndex) && input.slotIndex >= 0 ? proposal.slots[input.slotIndex] : undefined;
+  if (!slot) throw new MeetingBookingError("Choose one of the proposed slots.", 400);
+
+  const actor = personById(input.actorId);
+  const hasExternalAttendee = request.attendeeIds.some((id) => personById(id)?.function === "external");
+  const decision = evaluatePolicy({
+    action: "calendar.create_event", actorId: input.actorId,
+    actorRole: actor?.roles[0] ?? "executive", resourceOwnerId: ownerId,
+    risk: request.sensitivity === "confidential" ? "medium" : "low", topic: "scheduling",
+    requesterId: request.requesterId, hasExternalAttendee,
+    confidential: request.sensitivity === "confidential", ruleState: store.ruleState,
+  });
+  if (decision.outcome !== "allow") throw new MeetingBookingError("Calendar policy requires approval for this booking.", 409);
+
+  const participants = [...new Set([request.requesterId, ...request.attendeeIds])];
+  const busy = await calendar.getSchedule({ personIds: participants, from: slot.start, to: slot.end });
+  const conflict = busy.some((block) => block.status !== "tentative" && block.start < slot.end && block.end > slot.start);
+  if (conflict) throw new MeetingBookingError("That time has since been booked. Choose another slot.", 409);
+
+  const event = await calendar.createEvent({
+    ownerId, attendeeIds: participants, start: slot.start, end: slot.end,
+    subject: request.purpose, policyGrantId: `policy:${proposal.id}:${decision.policyVersion}`,
+  });
+  const updated = saveProposal({ ...proposal, status: "approved" });
+  recordAudit({
+    correlationId: nextId("cor"), actorId: input.actorId,
+    actorRole: actor?.roles[0] ?? "executive", action: "connector.calendar.create_event",
+    resourceType: "meeting_proposal", resourceId: proposal.id, outcome: "completed",
+    risk: request.sensitivity === "confidential" ? "medium" : "low",
+    policyVersion: decision.policyVersion, matchedRules: decision.matchedRules,
+    aiModel: null, promptVersion: null,
+    detail: `Event ${event.eventId} created (simulated) for chosen slot under direct policy grant.`,
+  });
+  return { proposal: updated, execution: { kind: "calendar_event_created" as const, ...event, slot } };
 }
 
 /* ------------------------------------------------------------------ */

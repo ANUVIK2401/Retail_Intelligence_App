@@ -73,6 +73,12 @@ Project → **Settings → Environment Variables**. All of these are
 It is the bootstrap: without it nobody can sign in, including you, and there is
 no way in through the UI.
 
+For the full meeting and approval walkthrough, map separate verified accounts
+to `p_ea`, `p_cfo`, `p_cmo`, and `p_gc` before presenting, or onboard them in
+Administration. The assistant account is required for assistant-routed
+scheduling. Each person signs in with their own account; there is no
+production role switcher.
+
 Leave `AI_PROVIDER=mock` for the demo. The mock provider is deterministic, so
 the risk-engine beat produces identical output every run — better on camera
 than a live model's latency and variation. Switch it later by setting

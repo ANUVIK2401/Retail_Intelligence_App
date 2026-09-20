@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Card } from "@/components/primitives";
 
 const ITEMS = [
+  { href: "/org-chart", label: "Org hierarchy", blurb: "Executive reporting structure" },
   { href: "/insights", label: "Insights", blurb: "Function-specific briefs with citations" },
   { href: "/workspace", label: "Workspace", blurb: "Private brainstorming, saved on purpose" },
   { href: "/publish", label: "Publish", blurb: "Draft, check, review, export" },
@@ -17,17 +18,20 @@ export default function MorePage() {
       <header className="page-head enter">
         <p className="page-eyebrow">Navigation</p>
         <h1 className="t-title mt-2">More</h1>
+        <p className="muted t-body mt-2 max-w-prose">
+          Explore the intelligence and governance behind each decision.
+        </p>
       </header>
       <Card>
         <ul className="divide-y" style={{ borderColor: "var(--border)" }}>
           {ITEMS.map((i) => (
             <li key={i.href}>
-              <Link href={i.href} className="tap flex items-center justify-between gap-3 py-3">
+              <Link href={i.href} className="tap flex items-center justify-between gap-3 py-3.5">
                 <span>
                   <span className="block text-sm font-medium">{i.label}</span>
                   <span className="muted block text-xs">{i.blurb}</span>
                 </span>
-                <span className="muted">›</span>
+                <span className="muted text-lg" aria-hidden="true">›</span>
               </Link>
             </li>
           ))}

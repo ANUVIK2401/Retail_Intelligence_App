@@ -20,53 +20,83 @@ export default function SchedulePage() {
   const [proposal, setProposal] = useState<MeetingProposal | null>(null);
   const [approvalId, setApprovalId] = useState<string | null>(null);
   const [outcome, setOutcome] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+  const [bookingClosed, setBookingClosed] = useState(false);
 
   async function propose() {
+    if (!purpose.trim()) {
+      setError("Add a purpose before finding times.");
+      return;
+    }
     setBusy(true);
     setOutcome(null);
+    setError(null);
+    setProposal(null);
+    setApprovalId(null);
+    setSelectedSlot(null);
+    setBookingClosed(false);
     const now = new Date();
     const earliest = new Date(now.getTime() + 18 * 60 * 60 * 1000);
     const latest = new Date(now.getTime() + 6 * 24 * 60 * 60 * 1000);
 
-    const res = await fetch("/api/meeting-proposals", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        requesterId,
-        attendeeIds: ["p_ceo"],
-        purpose,
-        durationMinutes: duration,
-        sensitivity: confidential ? "confidential" : "normal",
-        earliest: earliest.toISOString(),
-        latest: latest.toISOString(),
-      }),
-    });
-    const data = await res.json();
-    setBusy(false);
-    setProposal(data.proposal ?? null);
-    setApprovalId(data.approval?.id ?? null);
+    try {
+      const res = await fetch("/api/meeting-proposals", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          requesterId,
+          attendeeIds: ["p_ceo"],
+          purpose: purpose.trim(),
+          durationMinutes: duration,
+          sensitivity: confidential ? "confidential" : "normal",
+          earliest: earliest.toISOString(),
+          latest: latest.toISOString(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Available times could not be found.");
+      if (!data.proposal) throw new Error("The proposal returned an unexpected response.");
+      setProposal(data.proposal);
+      setApprovalId(data.approval?.id ?? null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Available times could not be found.");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  async function accept(slotIndex: number) {
-    if (!approvalId) {
-      setOutcome("Direct proposal permitted. In production this would send the invitation.");
-      return;
-    }
+  async function accept() {
+    if (!proposal || selectedSlot === null) return;
     setBusy(true);
-    const res = await fetch(`/api/approvals/${approvalId}/decide`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ outcome: "approved", slotIndex }),
-    });
-    const data = await res.json();
-    setBusy(false);
-    setOutcome(
-      res.ok
-        ? data.execution?.kind === "calendar_event_created"
-          ? "Invitation created (simulated). Recorded in the audit trail."
-          : `Step cleared. Status: ${data.approval.status}. The next approver must still act.`
-        : data.error,
-    );
+    setError(null);
+    setOutcome(null);
+    try {
+      const path = approvalId
+        ? `/api/approvals/${encodeURIComponent(approvalId)}/decide`
+        : `/api/meeting-proposals/${encodeURIComponent(proposal.id)}/book`;
+      const res = await fetch(path, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(approvalId ? { outcome: "approved", slotIndex: selectedSlot } : { slotIndex: selectedSlot }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "The selected time could not be confirmed.");
+      if (data.execution?.kind === "calendar_event_created") {
+        setOutcome(`Invitation created for ${formatSlot(proposal.slots[selectedSlot])} (simulated). Recorded in the audit trail.`);
+        setProposal(data.proposal ?? { ...proposal, status: "approved" });
+        setBookingClosed(true);
+      } else if (data.approval) {
+        setOutcome(`Approval step cleared. Status: ${data.approval.status.replace(/_/g, " ")}.`);
+        setBookingClosed(data.approval.status !== "awaiting_approval");
+      } else {
+        throw new Error("The booking returned an unexpected response.");
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The selected time could not be confirmed.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -82,7 +112,8 @@ export default function SchedulePage() {
 
       <Card title="Request time with Maya Hollis (CEO)">
         <div className="space-y-3">
-          <Field label="Requester">
+          <p className="muted text-xs leading-relaxed">Explore how routing changes for synthetic requesters in the demo directory.</p>
+          <Field label="Scenario requester">
             <select
               className="tap w-full rounded-lg border px-3 text-sm"
               style={{ borderColor: "var(--border)", background: "var(--bg)", color: "var(--text)" }}
@@ -103,6 +134,7 @@ export default function SchedulePage() {
               style={{ borderColor: "var(--border)", background: "var(--bg)", color: "var(--text)" }}
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
+              required
             />
           </Field>
 
@@ -137,6 +169,8 @@ export default function SchedulePage() {
         </div>
       </Card>
 
+      {error && <Card><p role="alert" className="text-sm">{error}</p></Card>}
+
       {proposal && (
         <>
           <Card title="Routing decision">
@@ -168,23 +202,26 @@ export default function SchedulePage() {
                 window.
               </p>
             ) : (
-              <ul className="space-y-2">
+              <div className="space-y-3">
+              <ul className="space-y-2" role="radiogroup" aria-label="Proposed meeting times">
                 {proposal.slots.map((slot, i) => (
-                  <li
-                    key={i}
-                    className="row-item flex flex-wrap items-center justify-between gap-3"
-                    style={{ borderColor: "var(--border)" }}
-                  >
+                  <li key={slot.start}>
+                    <label className="row-item flex cursor-pointer flex-wrap items-center gap-3" style={{ borderColor: selectedSlot === i ? "var(--accent)" : "var(--border)" }}>
+                    <input type="radio" name="meeting-slot" checked={selectedSlot === i} onChange={() => setSelectedSlot(i)} disabled={busy || bookingClosed} />
                     <div>
                       <p className="text-sm font-semibold">{formatSlot(slot)}</p>
                       <p className="muted text-xs">{slot.rationale}</p>
                     </div>
-                    <button className="btn" onClick={() => accept(i)} disabled={busy}>
-                      Choose
-                    </button>
+                    </label>
                   </li>
                 ))}
               </ul>
+              {!bookingClosed && (
+                <button className="btn btn-primary w-full" onClick={accept} disabled={busy || selectedSlot === null}>
+                  {busy ? "Confirming…" : approvalId ? "Approve selected time" : "Book selected time"}
+                </button>
+              )}
+              </div>
             )}
           </Card>
         </>
@@ -192,7 +229,7 @@ export default function SchedulePage() {
 
       {outcome && (
         <Card>
-          <p className="text-sm leading-relaxed">{outcome}</p>
+          <p role="status" className="text-sm leading-relaxed">{outcome}</p>
         </Card>
       )}
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { RiskLevel } from "@/core/contracts";
 import { Card, Empty, RiskBadge, relativeTime } from "@/components/primitives";
 
@@ -31,15 +31,22 @@ type Row =
 
 export default function InboxPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/emails")
-      .then((r) => r.json())
-      .then((d) => setRows(d.messages))
-      .catch(() => setRows([]));
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const response = await fetch("/api/emails");
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "The inbox could not be loaded.");
+      if (!Array.isArray(data.messages)) throw new Error("The inbox returned an unexpected response.");
+      setRows(data.messages);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "The inbox could not be loaded.");
+    }
   }, []);
 
-  if (!rows) return <p className="muted py-10 text-center text-sm">Loading…</p>;
+  useEffect(() => { void load(); }, [load]);
 
   return (
     <div className="space-y-5">
@@ -52,9 +59,18 @@ export default function InboxPage() {
         </p>
       </header>
 
-      {rows.length === 0 ? (
+      {error && (
+        <Card>
+          <p className="text-sm" role="alert">{error}</p>
+          <button className="btn mt-3" onClick={() => void load()}>Retry loading inbox</button>
+        </Card>
+      )}
+
+      {!rows && !error && <Card><p className="muted text-sm" role="status">Loading inbox…</p></Card>}
+
+      {rows?.length === 0 && !error ? (
         <Empty>No messages.</Empty>
-      ) : (
+      ) : rows && !error ? (
         <ul className="space-y-2">
           {rows.map((row) =>
             row.redacted ? (
@@ -95,7 +111,7 @@ export default function InboxPage() {
             ),
           )}
         </ul>
-      )}
+      ) : null}
     </div>
   );
 }

@@ -32,7 +32,7 @@ export type State = {
     provider: "mock" | "anthropic" | "openai";
   };
   mockDrafts: Map<string, { messageId: string; body: string; sentAt?: string }>;
-  mockEvents: Map<string, { eventId: string; ownerId: string; start: string; end: string; subject: string }>;
+  mockEvents: Map<string, { eventId: string; ownerId: string; attendeeIds?: string[]; start: string; end: string; subject: string }>;
   assistantRequests: number;
   seq: number;
 };
@@ -134,8 +134,8 @@ export function decideApproval(input: {
   note?: string;
   editedContent?: string;
 }): ApprovalRequest {
-  const approval = store.approvals.get(input.id);
-  if (!approval) throw new Error("Unknown approval request.");
+  const original = store.approvals.get(input.id);
+  if (!original) throw new Error("Unknown approval request.");
 
   // Only a request that is still awaiting a decision may receive one. The
   // earlier version of this check listed approved/rejected, which let a
@@ -143,36 +143,49 @@ export function decideApproval(input: {
   // approval, two drafts. Terminal states are enumerated rather than
   // excluded so a new status cannot silently become re-approvable.
   const DECIDABLE = new Set(["proposed", "awaiting_approval"]);
-  if (!DECIDABLE.has(approval.status)) {
+  if (!DECIDABLE.has(original.status)) {
     throw new Error(
-      `This request is ${approval.status} and can no longer be decided. Start a new request if something needs to change.`,
+      `This request is ${original.status} and can no longer be decided. Start a new request if something needs to change.`,
     );
   }
 
-  approval.history.push({
-    at: new Date().toISOString(),
-    actorId: input.actorId,
-    actorRole: input.actorRole,
-    outcome: input.outcome,
-    note: input.note ?? null,
-  });
+  // Publication checks determine the reviewer chain from the exact text. A
+  // change could require Legal or block export entirely, so edits need a new
+  // request and a fresh check before any reviewer may clear them.
+  if (original.subjectType === "publication" && input.editedContent !== undefined) {
+    throw new Error("Publication content changed. Edit the draft and start a new review request.");
+  }
 
-  // Editing the content invalidates every approval already collected against
-  // the previous text. Otherwise a reviewer's sign-off silently transfers to
-  // words they never read.
-  if (input.editedContent !== undefined && input.editedContent !== approval.proposedContent) {
-    approval.proposedContent = input.editedContent;
-    approval.contentVersion += 1;
-    if (approval.currentStep > 0) {
-      approval.currentStep = 0;
-      approval.history.push({
+  const contentChanged = input.editedContent !== undefined && input.editedContent !== original.proposedContent;
+  const approval: ApprovalRequest = {
+    ...original,
+    history: [...original.history, {
+      at: new Date().toISOString(),
+      actorId: input.actorId,
+      actorRole: input.actorRole,
+      outcome: contentChanged ? "edited" : input.outcome,
+      note: input.note ?? null,
+    }],
+  };
+
+  // A changed draft cannot also count as this step's approval. The review
+  // starts over, including the person who originally cleared the first step.
+  if (contentChanged) {
+    approval.proposedContent = input.editedContent!;
+    approval.contentVersion = original.contentVersion + 1;
+    approval.currentStep = 0;
+    approval.status = "awaiting_approval";
+    if (original.currentStep > 0) {
+      approval.history = [...approval.history, {
         at: new Date().toISOString(),
         actorId: input.actorId,
         actorRole: input.actorRole,
         outcome: "escalated",
         note: "Content was edited, so previously collected approvals no longer apply and the chain restarted.",
-      });
+      }];
     }
+    store.approvals.set(approval.id, approval);
+    return approval;
   }
 
   if (input.outcome === "rejected") {

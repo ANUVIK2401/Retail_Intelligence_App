@@ -5,9 +5,10 @@ import { NextResponse } from "next/server";
 import { MockMailConnector } from "@/core/connectors/mock";
 import { evaluatePolicy } from "@/core/policy/engine";
 import { evaluateDeterministicRisk } from "@/core/risk/rules";
+import { canSeeApproval } from "@/core/access";
 import { actorFromRequest } from "@/core/session";
-import { getAssessment, store } from "@/core/store";
-import { personById } from "@/data/org";
+import { getAssessment, listApprovals, store } from "@/core/store";
+import { personById, RESTRICTED_ACCESS } from "@/data/org";
 
 const mail = new MockMailConnector();
 
@@ -52,6 +53,10 @@ async function handleGET(
       fromTitle: personById(message.fromId)?.title ?? "",
     },
     assessment: getAssessment(id) ?? null,
+    approval: listApprovals().find((a) =>
+      a.subjectType === "email_draft" && a.subjectId === id &&
+      canSeeApproval(actor, a, { restrictedTopicOwners: RESTRICTED_ACCESS.confidential_strategy }),
+    ) ?? null,
   });
 }
 

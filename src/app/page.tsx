@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ApprovalRequest, AuditEvent, Insight, RiskLevel } from "@/core/contracts";
 import { Card, Empty, RiskBadge, relativeTime } from "@/components/primitives";
 
@@ -37,129 +37,161 @@ function greeting(): string {
 
 export default function DashboardPage() {
   const [data, setData] = useState<Dashboard | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/dashboard")
-      .then((r) => r.json())
-      .then(setData)
-      .catch(() => setData(null));
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const response = await fetch("/api/dashboard");
+      if (!response.ok) throw new Error("The overview could not be loaded.");
+      const payload = await response.json() as Dashboard | null;
+      if (!payload?.actor?.name || !payload.counts ||
+        !Array.isArray(payload.needsAttention) || !Array.isArray(payload.routine) ||
+        !Array.isArray(payload.pendingApprovals) || !Array.isArray(payload.insights) ||
+        !Array.isArray(payload.recentAudit)) {
+        throw new Error("The overview returned an unexpected response.");
+      }
+      setData(payload);
+    } catch {
+      setError("The overview could not be loaded. Please try again.");
+    }
   }, []);
 
-  if (!data) return <DashboardSkeleton />;
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (!data) return error ? (
+    <div className="load-error card" role="alert">
+      <p className="t-section">Your overview is temporarily unavailable</p>
+      <p className="muted t-caption mt-2">{error}</p>
+      <button className="btn btn-primary mt-4" onClick={() => void load()}>Try again</button>
+    </div>
+  ) : <DashboardSkeleton />;
 
   const waiting = data.pendingApprovals.length;
+  const priority = data.needsAttention[0];
+  const remaining = data.needsAttention.slice(1);
+  const today = new Date().toLocaleDateString("en-US", {
+    weekday: "long", month: "long", day: "numeric",
+  });
 
   return (
-    <div className="space-y-5">
-      {/* Hero. The two figures an executive checks first get display type;
-          everything else on the page is deliberately smaller than this. */}
-      <header className="page-head enter" style={{ "--i": 0 } as React.CSSProperties}>
-        <p className="page-eyebrow">{data.actor.title}</p>
-        <h1 className="t-display mt-2.5">
-          {greeting()}, {data.actor.name.split(" ")[0]}
-        </h1>
-        <p className="muted t-body mt-2 max-w-prose">
-          {data.counts.high === 0 && waiting === 0
-            ? "Nothing is escalated and nothing is waiting on you."
-            : "The assistant has assessed the queue. Every consequential action below still needs your approval."}
-        </p>
-
-        <div className="stat-grid mt-6">
-          {/* Tone is earned, not decorative: a count only takes a colour when
-              the count itself means something needs doing. Zero is neutral. */}
-          <Stat
-            value={data.counts.high}
-            label="Need you"
-            tone={data.counts.high > 0 ? "high" : "neutral"}
-          />
-          <Stat
-            value={waiting}
-            label="Awaiting approval"
-            tone={waiting > 0 ? "medium" : "neutral"}
-          />
-          <Stat value={data.counts.total} label="In queue" tone="neutral" />
-          <Stat value={data.completedApprovals} label="Decided" tone="neutral" />
+    <div className="overview space-y-5">
+      <header className="overview-hero enter" style={{ "--i": 0 } as React.CSSProperties}>
+        <div className="overview-hero-top">
+          <p className="overview-kicker"><span className="overview-kicker-mark" />Executive overview</p>
+          <p className="overview-date">{today}</p>
+        </div>
+        <div className="overview-hero-copy">
+          <p className="overview-role">{data.actor.title}</p>
+          <h1 className="t-display mt-2">{greeting()}, {data.actor.name.split(" ")[0]}.</h1>
+          <p className="overview-intro">
+            {data.counts.high === 0 && waiting === 0
+              ? "Your queue is clear. The command center is watching for what matters next."
+              : "A clear view of what needs judgment, what can wait, and what has already moved."}
+          </p>
+        </div>
+        <div className="overview-stats" aria-label="Queue summary">
+          <Stat value={data.counts.high} label="Needs attention" tone={data.counts.high > 0 ? "high" : "neutral"} />
+          <Stat value={waiting} label="Awaiting approval" tone={waiting > 0 ? "medium" : "neutral"} />
+          <Stat value={data.counts.total} label="In the queue" tone="neutral" />
+          <Stat value={data.completedApprovals} label="Decisions made" tone="neutral" />
         </div>
       </header>
 
-      <Card
-        title="Needs your attention"
-        className={`enter ${data.needsAttention.length > 0 ? "card-attention" : ""}`}
-        style={{ "--i": 1 } as React.CSSProperties}
-      >
-        {data.needsAttention.length === 0 ? (
-          <Empty>Nothing escalated right now.</Empty>
-        ) : (
-          <ul className="space-y-2">
-            {data.needsAttention.map((m) => (
-              <li key={m.id}>
-                <Link href={`/inbox/${m.id}`} className="tap row-item">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <RiskBadge level={m.level} />
-                    {m.injectionSuspected && (
-                      <span className="badge badge-high">Instruction attempt</span>
-                    )}
-                    <span className="muted t-caption tnum ml-auto">
-                      {relativeTime(m.receivedAt)}
-                    </span>
-                  </div>
-                  <p className="t-body mt-2 font-semibold leading-snug">{m.subject}</p>
-                  <p className="muted t-caption mt-0.5">{m.from}</p>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      <div className="overview-grid">
+        <Card title="Priority queue" className="overview-priority enter" style={{ "--i": 1 } as React.CSSProperties} action={<CardLink href="/inbox">Open inbox</CardLink>}>
+          {priority ? (
+            <>
+              <Link href={`/inbox/${priority.id}`} className="priority-feature tap">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="priority-index">01 / {String(data.needsAttention.length).padStart(2, "0")}</span>
+                  <RiskBadge level={priority.level} />
+                  {priority.injectionSuspected && <span className="badge badge-high">Instruction attempt</span>}
+                  <span className="priority-time">{relativeTime(priority.receivedAt)}</span>
+                </div>
+                <h2 className="priority-title">{priority.subject}</h2>
+                <div className="priority-bottom">
+                  <span>{priority.from}</span>
+                  <span className="priority-action">{priority.assessed ? "Review matter" : "Assess matter"} <ArrowIcon /></span>
+                </div>
+              </Link>
+              {remaining.length > 0 && (
+                <ul className="priority-list">
+                  {remaining.map((m, index) => (
+                    <li key={m.id}>
+                      <Link href={`/inbox/${m.id}`} className="priority-row tap">
+                        <span className="priority-row-number">{String(index + 2).padStart(2, "0")}</span>
+                        <span className="priority-row-copy">
+                          <span className="priority-row-title">{m.subject}</span>
+                          <span className="muted t-caption">{m.from} · {relativeTime(m.receivedAt)}</span>
+                        </span>
+                        <RiskBadge level={m.level} />
+                        <ArrowIcon />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : <Empty>No escalations right now. Your priority queue is clear.</Empty>}
+        </Card>
 
-      <Card
-        title="Approvals waiting"
-        className="enter"
-        style={{ "--i": 2 } as React.CSSProperties}
-        action={<CardLink href="/approvals">View all</CardLink>}
-      >
-        {waiting === 0 ? (
-          <Empty>Nothing is waiting. Assess a message in the Inbox to create one.</Empty>
-        ) : (
-          <ul className="space-y-2">
-            {data.pendingApprovals.slice(0, 4).map((a) => {
-              const steps = Math.max(a.decision.approvalChain.length, 1);
-              return (
-                <li key={a.id} className="row-item">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <RiskBadge level={a.risk} />
-                    <StepMeter current={a.currentStep} total={steps} />
-                  </div>
-                  <p className="t-body mt-2 font-semibold leading-snug">{a.title}</p>
-                  <p className="muted t-caption mt-1 leading-snug">{a.decision.reason}</p>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Card>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card
-          title="Routine, ready for review"
-          className="enter"
-          style={{ "--i": 3 } as React.CSSProperties}
-        >
-          {data.routine.length === 0 ? (
-            <Empty>Nothing routine.</Empty>
+        <Card title="Decision desk" className="overview-approvals enter" style={{ "--i": 2 } as React.CSSProperties} action={<CardLink href="/approvals">All approvals</CardLink>}>
+          {waiting === 0 ? (
+            <div className="decision-empty">
+              <span className="decision-empty-icon" aria-hidden="true">✓</span>
+              <p className="t-section mt-3">Nothing waiting on a decision</p>
+              <p className="muted t-caption mt-1">Assess a message to see its proposed action and approval path here.</p>
+              <CardLink href="/inbox">Review inbox</CardLink>
+            </div>
           ) : (
+            <ul className="decision-list">
+              {data.pendingApprovals.slice(0, 4).map((a) => {
+                const steps = Math.max(a.decision.approvalChain.length, 1);
+                return (
+                  <li key={a.id}>
+                    <Link href="/approvals" className="decision-row tap">
+                      <div className="flex flex-wrap items-center gap-2"><RiskBadge level={a.risk} /><StepMeter current={a.currentStep} total={steps} /></div>
+                      <p className="t-body mt-2 font-semibold leading-snug">{a.title}</p>
+                      <p className="muted t-caption mt-1 leading-snug">{a.decision.reason}</p>
+                      <span className="decision-row-action">Review approval <ArrowIcon /></span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+
+        <Card title="Your daily brief" className="overview-brief enter" style={{ "--i": 3 } as React.CSSProperties} action={<CardLink href="/insights">Explore insights</CardLink>}>
+          {data.insights.length === 0 ? <Empty>No approved brief is available for your function.</Empty> : (
+            <ul className="brief-list">
+              {data.insights.map((insight, index) => (
+                <li key={insight.id} className="brief-story">
+                  <span className="brief-number">0{index + 1}</span>
+                  <div>
+                    <h3 className="brief-headline">{insight.headline}</h3>
+                    <p className="muted t-caption mt-1 leading-relaxed">{insight.body.length > 180 ? `${insight.body.slice(0, 180).trimEnd()}…` : insight.body}</p>
+                    <p className="cite mt-2">{insight.citations.map((citation) => citation.label).join(", ")}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card title="Routine in the queue" className="overview-routine enter" style={{ "--i": 4 } as React.CSSProperties} action={<CardLink href="/inbox">View queue</CardLink>}>
+          {data.routine.length === 0 ? <Empty>Nothing routine to review.</Empty> : (
             <ul className="divide-list">
               {data.routine.slice(0, 5).map((m) => (
                 <li key={m.id}>
-                  {/* min-w-0: a flex child defaults to min-width:auto, so the
-                      truncating span below grows to its full text width and
-                      pushes the card past the viewport on a phone. */}
-                  <Link href={`/inbox/${m.id}`} className="tap quiet-row flex min-w-0 items-center gap-2.5">
-                    <span
-                      className="dot"
-                      style={{ background: m.level === "medium" ? "var(--medium)" : "var(--low)" }}
-                    />
-                    <span className="t-caption truncate">{m.subject}</span>
+                  <Link href={`/inbox/${m.id}`} className="routine-row tap">
+                    <span className="dot" style={{ background: m.level === "medium" ? "var(--medium)" : "var(--low)" }} />
+                    <span className="routine-title">{m.subject}</span>
+                    <span className="muted t-caption tnum routine-time">{relativeTime(m.receivedAt)}</span>
+                    <ArrowIcon />
                   </Link>
                 </li>
               ))}
@@ -167,45 +199,19 @@ export default function DashboardPage() {
           )}
         </Card>
 
-        <Card
-          title="Your daily brief"
-          className="enter"
-          style={{ "--i": 4 } as React.CSSProperties}
-        >
-          <ul className="space-y-3.5">
-            {data.insights.map((i) => (
-              <li key={i.id} className="brief-item">
-                <p className="t-body font-semibold leading-snug">{i.headline}</p>
-                <p className="muted t-caption mt-1 leading-relaxed">{i.body.slice(0, 150)}…</p>
-                <p className="cite mt-1.5">{i.citations.map((c) => c.label).join(", ")}</p>
-              </li>
-            ))}
-          </ul>
+        <Card title="Recent activity" className="overview-activity enter" style={{ "--i": 5 } as React.CSSProperties} action={<CardLink href="/audit">Audit history</CardLink>}>
+          {data.recentAudit.length === 0 ? <Empty>No activity yet this session.</Empty> : (
+            <ul className="audit-list">
+              {data.recentAudit.map((e) => (
+                <li key={e.id} className="audit-row">
+                  <div className="flex flex-wrap items-baseline gap-2"><span className="audit-action">{e.action}</span><span className="muted t-micro tnum">{relativeTime(e.at)}</span></div>
+                  <p className="muted t-caption mt-0.5">{e.detail}</p>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
       </div>
-
-      <Card
-        title="Recent activity"
-        className="enter"
-        style={{ "--i": 5 } as React.CSSProperties}
-        action={<CardLink href="/audit">Audit history</CardLink>}
-      >
-        {data.recentAudit.length === 0 ? (
-          <Empty>No activity yet this session.</Empty>
-        ) : (
-          <ul className="audit-list">
-            {data.recentAudit.map((e) => (
-              <li key={e.id} className="audit-row">
-                <div className="flex flex-wrap items-baseline gap-2">
-                  <span className="audit-action">{e.action}</span>
-                  <span className="muted t-micro tnum">{relativeTime(e.at)}</span>
-                </div>
-                <p className="muted t-caption mt-0.5">{e.detail}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
     </div>
   );
 }
@@ -218,6 +224,10 @@ function Stat({ value, label, tone }: { value: number; label: string; tone: "hig
       <p className="stat-label">{label}</p>
     </div>
   );
+}
+
+function ArrowIcon() {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>;
 }
 
 /** Approval progress as ticks rather than "step 1 of 3" in muted 11px. */

@@ -1,108 +1,52 @@
-# Demo script
+# Executive Command Center demo script
 
-Five minutes, four beats. Every claim below is checked by
-`scripts/verify-demo.sh`, so nothing here depends on the demo behaving.
+Five minutes. Use synthetic records throughout. The product story is simple: the assistant surfaces the signal and prepares work; named people make consequential decisions.
 
-## Before you start
+## Before the meeting
+
+For a local walkthrough:
 
 ```bash
 npm install
-npm run build
-npm run start            # http://localhost:3000
-PORT=3000 bash scripts/verify-demo.sh    # 115 checks, run it once on the machine you will demo on
+AUTH_MODE=demo npm run dev
+PORT=3000 bash scripts/verify-demo.sh
 ```
 
-State is in memory. Restarting the server resets everything to a known point,
-which is the recovery move if a beat goes wrong.
+Open `http://127.0.0.1:3000`. Local demo mode starts as the synthetic CEO. Restarting the local server clears its in-memory session. The deployed version uses mapped Google accounts and Postgres-backed demo state; follow [the deployment runbook](DEPLOY.md) and verify separate CEO, assistant, and CFO sign-ins before presenting cross-person handoffs. Google sign-in does not connect live Gmail or Calendar data.
 
-The sidebar identity switcher stands in for Microsoft Entra sign-in. Switching
-identity changes what the policy engine permits — it is not a view filter.
+## 1. Start with the day (45 seconds)
 
----
+Open **Overview**. Point to the priority queue, decision desk, daily brief, and routine queue. Open the store fire from the priority list. The message is assessed before an action is proposed, and the page shows the risk rule and approval path beside the model's proposal.
 
-## Beat 1 — the model does not decide (90s)
+Say: “The system reduces the reading burden, but it does not get to make the decision.”
 
-**Inbox → "URGENT: Fire at Store 412".** Assess it.
+## 2. Show the boundary (75 seconds)
 
-Say: the deterministic rules ran *before* the model and rated this high. The
-model's own proposal is shown next to the result. Drafting is blocked and the
-crisis reviewer is in the chain.
+Assess the fire message. It is high risk. No reply is drafted. **Acknowledge and escalate** is the permitted action, and the crisis reviewer is named in the chain.
 
-**Then the strong version.** Controls → turn on "simulate compromised model".
-Re-assess the same message.
+Go to **Controls** and enable **Simulate compromised model**. Return to the same message and choose **Reassess with current policy**. The simulated model proposes a low score, while the deterministic rule keeps the outcome high and blocked. Restore the control afterward.
 
-The model now reports `low / routine` for everything. The message is still
-high, still blocked, and the UI says the rule overrode the model. That is
-`max(deterministic, model)` in `assess.ts`, and it is the reason a manipulated
-model cannot cause an action.
+Say: “A model can suggest. It cannot lower a rule-enforced risk or send a reply around review.”
 
-Turn the toggle back off.
+## 3. Make scheduling tangible (60 seconds)
 
-## Beat 2 — authorization is real, not a filter (60s)
+Open **Schedule**. Select Casey Wu as the synthetic requester and **Find times**. Show the routing reason and the named executive assistant step. Availability is free/busy only. Select a proposed time to make the approval path concrete.
 
-**Switch to Grace Whitfield (EA). Open Inbox.**
+Then select Ray Alvarez, the CEO's direct report, and find times again. This request is allowed directly. Select a time and **Book selected time**; the simulated invitation is recorded in the audit trail.
 
-The restricted acquisition thread is withheld, and the withheld row carries no
-subject. Try to assess it directly and the answer is 403 with no content — no
-summary, no entities, and no model call was made. Authorization runs *before*
-classification, which is the difference between refusing to answer and
-answering then apologising.
+## 4. Follow an approval (90 seconds)
 
-Switch back to Maya Hollis and the same message opens normally.
+In **Inbox**, assess the DC throughput email. The prepared reply is medium risk and requires a named approval chain. Clear the CEO step. The chain remains open; no draft has been created in the mailbox yet. If the text is edited, the approval chain restarts for the revised draft.
 
-## Beat 3 — approval is a record, not a button (90s)
+On a deployed demo with separately mapped accounts, sign in as the CFO and open **Approvals**. Clear the finance step. The connector creates a simulated mailbox draft and does not send it. In local demo mode, `scripts/verify-demo.sh` exercises this identity handoff through test-only cookies; the browser has no public role switcher.
 
-**Publish → "Denim circularity launch".**
+## 5. Close on evidence (30 seconds)
 
-The checks run: regulated claims fails on "94% recovery", and legal is added to
-the chain *because* that check failed. The chain is derived from the check
-results — no model chose it.
+Open **Audit history** to show the assessment, policy result, approval step, and connector action recorded in the current account's demo session. Open **Insights** to show that answers cite approved sources and that sources outside the acting function are excluded before retrieval.
 
-Click **Send for review**. An approval id appears: `awaiting approval, 0 of 3
-steps cleared`.
+## If asked
 
-Now click **Approve as you: Communications review** while acting as the CEO.
-It is refused: the CEO is not the communications reviewer. Switch identity to
-Tomas Lund and it clears. This is the same approval gate the email flow uses.
-
-Click **Export as unapproved draft** at any point and read the header aloud:
-
-```
-Status: DRAFT — NOT APPROVED. Do not post this text.
-Decisions so far: none. No reviewer has seen this draft.
-```
-
-The export states what actually happened. There is no publish function in the
-codebase to flip on.
-
-## Beat 4 — everything is written down (60s)
-
-**Audit history.** Every assessment, connector call, refusal, and policy change
-is there, with the rule ids that fired and the prompt version. Audit lines
-carry identifiers, not message subjects, because auditors are not cleared for
-every message they can see a record of.
-
-Close on **Insights**: ask a logistics question as the CMO. The answer cites
-only marketing-cleared sources, and the panel names the five sources that were
-excluded *before* retrieval — they were never chunked, embedded, or ranked.
-
----
-
-## If someone asks
-
-**"Has this been tested adversarially?"** Yes, and it failed twice. An
-evaluation harness over 63 labelled messages found two threatened legal claims
-rated low; the rule was widened and the false-safe rate went to 0%. A separate
-end-to-end review found seven issues, four high severity, including exports
-that claimed approvals nobody had given. All are fixed with regression tests.
-`docs/END-TO-END-REVIEW.md` has the full list — it is in the repository on
-purpose.
-
-**"What is the false-safe number?"** 0% on this set, against a *stand-in*
-model, on a dataset that was used to fix the rules. It is regression evidence,
-not held-out evidence, and not a measurement of any hosted model. That caveat
-is at the top of `docs/EVALUATION.md`.
-
-**"Can we pilot this?"** Not yet, and the blocker is not only tenant access.
-Identity is simulated, state is in memory, and nothing survives a restart.
-`docs/00-BUILD-PLAN.md` has the ordered path.
+- **Is this using company data?** No. All records and connectors in this prototype are synthetic. Live Gmail and Calendar access are not implemented.
+- **Can the assistant send or publish?** No. The assistant is read-only. The email flow creates a draft only after approval; publication creates an export for a person to review and post.
+- **Is this production ready?** It is a governed prototype. See [the build plan](00-BUILD-PLAN.md) and [the deployment runbook](DEPLOY.md) for the remaining integration and operational work.
+- **Has it been tested adversarially?** The local regression suite covers prompt injection, a compromised model, wrong-identity approvals, restricted access, and blocked actions. The evaluation results in [EVALUATION.md](EVALUATION.md) are for a stand-in model and the dataset used to refine the rules.

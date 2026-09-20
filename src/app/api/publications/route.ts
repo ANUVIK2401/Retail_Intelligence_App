@@ -3,9 +3,9 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { evaluatePolicy } from "@/core/policy/engine";
-import { exportForHuman, review } from "@/core/services/publishing";
+import { exportForHuman, matchingPublicationApproval, publicationArtifactMatchesApproval, publicationSubjectId, review } from "@/core/services/publishing";
 import { actorFromRequest } from "@/core/session";
-import { getApproval, nextId, recordAudit, saveApproval, store } from "@/core/store";
+import { getApproval, listApprovals, nextId, recordAudit, saveApproval, store } from "@/core/store";
 import { PEOPLE } from "@/data/org";
 
 /**
@@ -20,6 +20,7 @@ async function handlePOST(req: Request) {
   let title = "Untitled draft";
   let channel = "linkedin";
   let wantExport = false;
+  let exportUnapproved = false;
   let approvalId: string | null = null;
   let wantApproval = false;
   try {
@@ -30,6 +31,7 @@ async function handlePOST(req: Request) {
       title = String(p.title ?? title);
       channel = String(p.channel ?? channel);
       wantExport = p.export === true;
+      exportUnapproved = p.exportUnapproved === true;
       approvalId = typeof p.approvalId === "string" ? p.approvalId : null;
       wantApproval = p.requestApproval === true;
     }
@@ -60,6 +62,15 @@ async function handlePOST(req: Request) {
     ruleState: store.ruleState,
   });
 
+  const artifact = { actorId: actor.id, channel, title, body };
+  const matchingReview = (approval: NonNullable<ReturnType<typeof getApproval>>) =>
+    approval.decision.policyVersion === decision.policyVersion &&
+    JSON.stringify(approval.decision.approvalChain.map((step) => [step.kind, step.reviewerDomain])) ===
+      JSON.stringify(result.chain.map((step) => [step.kind, step.reviewerDomain]));
+  const existing = listApprovals().find((approval) =>
+    publicationArtifactMatchesApproval(approval, artifact) && matchingReview(approval) &&
+    ["awaiting_approval", "proposed", "approved", "completed"].includes(approval.status));
+
   recordAudit({
     correlationId: `pub_${Date.now()}`,
     actorId: actor.id,
@@ -82,11 +93,12 @@ async function handlePOST(req: Request) {
   // approval gate decides. The Publish page's buttons drive that gate; they
   // no longer advance a local counter that means nothing.
   if (wantApproval && !result.blocked) {
+    if (existing) return NextResponse.json({ decision, ...result, approval: existing });
     const created = saveApproval({
       id: nextId("ap"),
       action: "publication.publish",
       subjectType: "publication",
-      subjectId: title.slice(0, 60),
+      subjectId: publicationSubjectId({ channel, title }),
       title: `Publication: ${title}`,
       proposedContent: body,
       risk: "low",
@@ -111,13 +123,14 @@ async function handlePOST(req: Request) {
   }
 
   if (!wantExport) {
-    return NextResponse.json({ decision, ...result, approval: approvalId ? getApproval(approvalId) ?? null : null });
+    const found = approvalId ? getApproval(approvalId) : existing;
+    return NextResponse.json({ decision, ...result, approval: publicationArtifactMatchesApproval(found, artifact) && found && matchingReview(found) ? found : null });
   }
 
   // Provenance comes from a real approval record or from nothing at all.
-  const approval = approvalId ? getApproval(approvalId) : undefined;
-  const approvalComplete =
-    approval?.status === "approved" || approval?.status === "completed";
+  const found = exportUnapproved ? undefined : approvalId ? getApproval(approvalId) : existing;
+  const approvalComplete = matchingPublicationApproval(found, artifact) && Boolean(found && matchingReview(found));
+  const approval = approvalComplete ? found : undefined;
   const decidedBy = (approval?.history ?? [])
     .filter((h) => h.outcome === "approved")
     .map((h) => `${personName(h.actorId)} (${h.actorRole})`);
@@ -174,4 +187,28 @@ function titleHash(t: string): string {
   return Math.abs(h).toString(36).slice(0, 8);
 }
 
+/** Restore only this member's most recent reviewed text for a selected draft. */
+async function handleGET(req: Request) {
+  const actor = actorFromRequest(req);
+  const params = new URL(req.url).searchParams;
+  const channel = params.get("channel") ?? "linkedin";
+  const title = params.get("title");
+  if ((title !== null && (!title.trim() || title.length > 160)) || !channel.trim() || channel.length > 40) {
+    return NextResponse.json({ error: "Provide a valid draft title and channel." }, { status: 400 });
+  }
+  const subjectId = title === null ? null : publicationSubjectId({ channel, title });
+  const approval = listApprovals().find((candidate) =>
+    candidate.action === "publication.publish" && candidate.subjectType === "publication" &&
+    candidate.requestedFor === actor.id &&
+    candidate.subjectId === publicationSubjectId({ channel, title: candidate.title.replace(/^Publication: /, "") }) &&
+    (subjectId === null || candidate.subjectId === subjectId) &&
+    ["awaiting_approval", "proposed", "approved", "completed"].includes(candidate.status));
+  return NextResponse.json({ draft: approval ? {
+    title: approval.title.replace(/^Publication: /, ""),
+    body: approval.proposedContent,
+    approval,
+  } : null });
+}
+
+export const GET = withDemoState(handleGET);
 export const POST = withDemoState(handlePOST);
