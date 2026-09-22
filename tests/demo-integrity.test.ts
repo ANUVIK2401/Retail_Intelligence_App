@@ -44,12 +44,12 @@ test("an allowed meeting can book one chosen slot only once", async () => {
 test("calendar availability includes session bookings and refuses overlapping writes", async () => {
   await runMemorySession("calendar-overlap", async () => {
     const calendar = new MockCalendarConnector();
-    const first = { ownerId: "p_ceo", attendeeIds: ["p_cfo"], start: "2030-01-07T16:00:00.000Z", end: "2030-01-07T17:00:00.000Z", approvalId: "approved-1" };
+    const first = { ownerId: "p_ceo", attendeeIds: ["p_cfo"], start: "2030-01-07T16:00:00.000Z", end: "2030-01-07T17:00:00.000Z", sensitivity: "normal" as const, approvalId: "approved-1" };
     await calendar.createEvent({ ...first, subject: "Budget review" });
     const busy = await calendar.getSchedule({ personIds: ["p_ceo", "p_cfo"], from: "2030-01-07T15:00:00.000Z", to: "2030-01-07T18:00:00.000Z" });
     assert.equal(busy.some((block) => block.personId === "p_ceo" && block.start === first.start), true);
     assert.equal(busy.some((block) => block.personId === "p_cfo" && block.start === first.start), true);
-    await assert.rejects(calendar.createEvent({ ownerId: "p_cfo", attendeeIds: ["p_cmo"], start: "2030-01-07T16:30:00.000Z", end: "2030-01-07T17:30:00.000Z", subject: "Overlapping meeting", approvalId: "approved-2" }), /already booked/i);
+    await assert.rejects(calendar.createEvent({ ownerId: "p_cfo", attendeeIds: ["p_cmo"], start: "2030-01-07T16:30:00.000Z", end: "2030-01-07T17:30:00.000Z", subject: "Overlapping meeting", sensitivity: "normal", approvalId: "approved-2" }), /already booked/i);
   });
 });
 

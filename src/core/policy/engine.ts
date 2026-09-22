@@ -125,6 +125,14 @@ export const POLICY_RULES: PolicyRule[] = [
     editable: true,
   },
   {
+    id: "P-SCHED-OWNER-CHANGE",
+    description:
+      "Calendar changes are made by the calendar owner; changes on another person's calendar require a separate approval workflow.",
+    enabled: true,
+    category: "scheduling",
+    editable: false,
+  },
+  {
     id: "P-PUBLISH-REVIEW-CHAIN",
     description:
       "External publication requires communications review, then executive approval. Legal review is added for regulated claims.",
@@ -261,6 +269,17 @@ export function evaluatePolicy(ctx: PolicyContext): PolicyDecision {
         "require_approval",
         "Calendar writes on another person's calendar require their approval or a delegated assistant's confirmation.",
         approverChain(ctx),
+      );
+
+    case "calendar.update_event":
+      matched.push("P-SCHED-OWNER-CHANGE");
+      if (ctx.actorId === ctx.resourceOwnerId && ctx.risk === "low") {
+        return decide("allow", "You are moving a routine event on your own calendar.");
+      }
+      return decide(
+        "require_approval",
+        "Changes to another person's calendar or a sensitive event require a separate approval workflow.",
+        [{ kind: "executive", reviewerDomain: null, label: "Calendar owner approval" }],
       );
 
     case "insight.generate":

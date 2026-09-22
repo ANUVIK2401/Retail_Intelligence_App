@@ -14,7 +14,7 @@ test("session storage keys differ by authenticated executive", () => {
 test("serialization retains maps, simulated effects, and independent copies", () => {
   const original = freshState();
   original.mockDrafts.set("draft", { messageId: "email", body: "Synthetic draft" });
-  original.mockEvents.set("event", { eventId: "event", ownerId: "ceo", start: "a", end: "b", subject: "Demo" });
+  original.mockEvents.set("event", { eventId: "event", ownerId: "ceo", start: "a", end: "b", subject: "Demo", sensitivity: "normal" });
   const restored = deserializeState(serializeState(original));
   assert.deepEqual(restored.mockDrafts.get("draft"), original.mockDrafts.get("draft"));
   assert.equal(restored.mockEvents.get("event")?.subject, "Demo");

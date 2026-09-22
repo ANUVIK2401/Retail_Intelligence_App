@@ -4,10 +4,11 @@ export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { MeetingRequestSchema } from "@/core/contracts";
 import { canSeeApproval } from "@/core/access";
-import { proposeMeeting } from "@/core/services/scheduling";
+import { maySubmitMeetingRequest, proposeMeeting } from "@/core/services/scheduling";
 import { actorFromRequest } from "@/core/session";
 import { listApprovals, listProposals } from "@/core/store";
 import { DELEGATIONS, RESTRICTED_ACCESS } from "@/data/org";
+import { readJsonBody } from "@/core/deployment/request";
 
 /** Proposals are scoped to the requester, the attendees, and auditors. */
 async function handleGET(req: Request) {
@@ -31,7 +32,13 @@ async function handleGET(req: Request) {
 
 async function handlePOST(req: Request) {
   const actor = actorFromRequest(req);
-  const parsed = MeetingRequestSchema.safeParse(await req.json().catch(() => null));
+  let body: unknown;
+  try { body = await readJsonBody(req, 16_384); }
+  catch (error) {
+    const oversized = error instanceof Error && error.message === "Request is too large.";
+    return NextResponse.json({ error: oversized ? error.message : "Invalid JSON request." }, { status: oversized ? 413 : 400 });
+  }
+  const parsed = MeetingRequestSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Invalid meeting request", issues: parsed.error.issues },
@@ -47,16 +54,7 @@ async function handlePOST(req: Request) {
   // delegation, or when they are an assistant triaging on an executive's
   // behalf. What is refused is asserting a requester identity unrelated to the
   // caller and not addressed to them.
-  const { requesterId, attendeeIds } = parsed.data;
-  const mayActFor =
-    requesterId === actor.id ||
-    attendeeIds.includes(actor.id) ||
-    DELEGATIONS.some(
-      (d) =>
-        d.delegateId === actor.id &&
-        (d.executiveId === requesterId || attendeeIds.includes(d.executiveId)),
-    ) ||
-    actor.roles.includes("executive_assistant");
+  const mayActFor = maySubmitMeetingRequest(actor, parsed.data);
 
   if (!mayActFor) {
     return NextResponse.json(

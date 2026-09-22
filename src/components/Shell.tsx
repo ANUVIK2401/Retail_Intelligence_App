@@ -6,6 +6,7 @@ import { AssistantPanel } from "./AssistantPanel";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
+import { ExecutiveOnboarding } from "./ExecutiveOnboarding";
 
 /**
  * Responsive shell. One set of routes, two layouts:
@@ -63,6 +64,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [session, setSession] = useState<SessionInfo | null>(null);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const [tourRequest, setTourRequest] = useState(0);
   const assistantCloseRef = useRef<HTMLButtonElement>(null);
   const assistantRailRef = useRef<HTMLElement>(null);
   const assistantLauncherRef = useRef<HTMLButtonElement>(null);
@@ -147,7 +149,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
           )}
         </nav>
         <div className="app-sidebar-footer">
-          <MemberPanel session={session} />
+          <MemberPanel
+            session={session}
+            onOpenTour={() => {
+              setAssistantOpen(false);
+              setTourRequest((request) => request + 1);
+            }}
+          />
         </div>
       </aside>
 
@@ -231,11 +239,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
       >
         <SparkIcon /><span>Ask assistant</span>
       </button>
+      {session && <ExecutiveOnboarding actor={session.actor} openRequest={tourRequest} />}
     </div>
   );
 }
 
-function MemberPanel({ session }: { session: SessionInfo | null }) {
+function MemberPanel({ session, onOpenTour }: { session: SessionInfo | null; onOpenTour: () => void }) {
   if (!session) return null;
   return (
     <div className="member-panel">
@@ -244,6 +253,7 @@ function MemberPanel({ session }: { session: SessionInfo | null }) {
         <p className="truncate text-sm font-semibold">{session.member?.name ?? session.actor.name}</p>
         <p className="muted truncate text-xs">{session.actor.title}</p>
       </div>
+      <button type="button" onClick={onOpenTour} className="member-signout tap px-2 text-xs font-semibold" title="Open tour" aria-label="Open executive tour">Tour</button>
       <button type="button" onClick={() => signOut({ callbackUrl: "/sign-in" })} className="member-signout tap" title="Sign out" aria-label="Sign out">↗</button>
     </div>
   );

@@ -72,6 +72,45 @@ export const DelegationSchema = z.object({
 export type Delegation = z.infer<typeof DelegationSchema>;
 
 /* ------------------------------------------------------------------ */
+/* Read-only assistant                                                 */
+/* ------------------------------------------------------------------ */
+
+export const AssistantSourceSchema = z.enum([
+  "emails",
+  "meetings",
+  "availability",
+  "help",
+]);
+export type AssistantSource = z.infer<typeof AssistantSourceSchema>;
+
+export const AssistantItemSchema = z.object({
+  /** Short, permission-filtered card heading. */
+  label: z.string().min(1),
+  /** Grounded context for the heading; never raw email body content. */
+  detail: z.string().min(1),
+  /** Source-native state such as busy, pending, or info. */
+  status: z.string().min(1),
+});
+export type AssistantItem = z.infer<typeof AssistantItemSchema>;
+
+export const AssistantDeepLinkSchema = z.object({
+  href: z.string().startsWith("/"),
+  label: z.string().min(1),
+});
+export type AssistantDeepLink = z.infer<typeof AssistantDeepLinkSchema>;
+
+export const AssistantResponseSchema = z.object({
+  source: AssistantSourceSchema,
+  /** Backward-compatible plain-text response for older clients. */
+  answer: z.string().min(1),
+  summary: z.string().min(1),
+  items: z.array(AssistantItemSchema),
+  deepLink: AssistantDeepLinkSchema.nullable(),
+  suggestions: z.array(z.string().min(1)),
+});
+export type AssistantResponse = z.infer<typeof AssistantResponseSchema>;
+
+/* ------------------------------------------------------------------ */
 /* Risk                                                                */
 /* ------------------------------------------------------------------ */
 
@@ -137,6 +176,7 @@ export const ActionSchema = z.enum([
   "calendar.read_details",
   "calendar.propose",
   "calendar.create_event",
+  "calendar.update_event",
   "insight.generate",
   "publication.draft",
   "publication.publish",
@@ -235,15 +275,69 @@ export const BusyBlockSchema = z.object({
 });
 export type BusyBlock = z.infer<typeof BusyBlockSchema>;
 
-export const MeetingRequestSchema = z.object({
-  requesterId: z.string(),
-  attendeeIds: z.array(z.string()).min(1),
-  purpose: z.string(),
-  durationMinutes: z.number().int().positive(),
-  sensitivity: z.enum(["normal", "confidential"]).default("normal"),
-  earliest: z.string(),
-  latest: z.string(),
+/** Synthetic calendar detail. Subjects are only returned from owner-scoped APIs. */
+export const CalendarEventSchema = z.object({
+  eventId: z.string().min(1),
+  ownerId: z.string().min(1),
+  attendeeIds: z.array(z.string()).optional(),
+  start: z.string().datetime({ offset: true }),
+  end: z.string().datetime({ offset: true }),
+  subject: z.string().min(1),
+  sensitivity: z.enum(["normal", "confidential"]),
+  /** Immutable anchor used to prevent repeatedly walking an event beyond policy bounds. */
+  originalStart: z.string().datetime({ offset: true }).optional(),
 });
+export type CalendarEvent = z.infer<typeof CalendarEventSchema>;
+
+/** Subject is present only when the requesting actor owns the event. */
+export const CalendarEventViewSchema = CalendarEventSchema
+  .omit({ subject: true })
+  .extend({ subject: z.string().min(1).optional() });
+export type CalendarEventView = z.infer<typeof CalendarEventViewSchema>;
+
+export const RescheduleCalendarEventSchema = z
+  .object({
+    start: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type RescheduleCalendarEvent = z.infer<typeof RescheduleCalendarEventSchema>;
+
+export const MeetingRequestSchema = z
+  .object({
+    requesterId: z.string().min(1),
+    attendeeIds: z.array(z.string().min(1)).min(1).max(12),
+    purpose: z.string().trim().min(3).max(200),
+    durationMinutes: z.number().int().min(15).max(480),
+    sensitivity: z.enum(["normal", "confidential"]).default("normal"),
+    earliest: z.string().datetime({ offset: true }),
+    latest: z.string().datetime({ offset: true }),
+  })
+  .strict()
+  .superRefine((request, context) => {
+    const windowMinutes =
+      (Date.parse(request.latest) - Date.parse(request.earliest)) / (60 * 1000);
+    if (windowMinutes < request.durationMinutes) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["latest"],
+        message: "Meeting window must be long enough for the requested duration.",
+      });
+    }
+    if (windowMinutes > 30 * 24 * 60) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["latest"],
+        message: "Meeting search windows may not exceed 30 days.",
+      });
+    }
+    if (new Set(request.attendeeIds).size !== request.attendeeIds.length) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["attendeeIds"],
+        message: "Meeting attendees must be unique.",
+      });
+    }
+  });
 export type MeetingRequest = z.infer<typeof MeetingRequestSchema>;
 
 export const ProposedSlotSchema = z.object({

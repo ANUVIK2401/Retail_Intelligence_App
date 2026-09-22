@@ -589,6 +589,67 @@ nav a:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
   cursor: pointer;
 }
 .assistant-launcher:hover { filter: brightness(0.93); }
+.assistant-panel-head {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 10%, var(--surface)), var(--surface) 72%);
+}
+.assistant-panel-head::after {
+  content: "";
+  position: absolute;
+  right: -64px;
+  top: -78px;
+  width: 180px;
+  height: 180px;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  border-radius: 50%;
+  box-shadow: 0 0 0 24px color-mix(in srgb, var(--accent) 4%, transparent), 0 0 0 48px color-mix(in srgb, var(--accent) 3%, transparent);
+  pointer-events: none;
+}
+.assistant-status { display: flex; align-items: center; gap: 7px; }
+.assistant-status > span { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.assistant-starter {
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  padding: 10px 13px;
+  background: var(--sunken);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.45;
+  transition: transform .2s var(--ease), border-color .2s, background .2s;
+}
+.assistant-starter:hover { transform: translateX(2px); border-color: var(--accent); background: var(--accent-soft); }
+.assistant-starter > span:last-child { color: var(--accent); font-size: 18px; }
+.assistant-message { animation: assistant-message-in .28s var(--ease) both; }
+.assistant-message-answer { box-shadow: 0 8px 26px rgba(7, 34, 45, .055); }
+.assistant-result-list { display: grid; gap: 7px; margin-top: 12px; }
+.assistant-result-list li { display: flex; align-items: flex-start; gap: 9px; border-top: 1px solid var(--hairline); padding-top: 8px; }
+.assistant-result-list strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1.4; }
+.assistant-result-list small { display: block; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.assistant-result-dot { flex: none; width: 7px; height: 7px; margin-top: 5px; border-radius: 50%; background: var(--accent); }
+.assistant-result-dot[data-status="awaiting_approval"], .assistant-result-dot[data-status="tentative"] { background: var(--medium); }
+.assistant-result-dot[data-status="out_of_office"], .assistant-result-dot[data-status="rejected"] { background: var(--high); }
+.assistant-message-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.assistant-deep-link, .assistant-retry { display: inline-flex; min-height: 44px; align-items: center; gap: 7px; border-radius: 9px; padding: 7px 10px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 750; }
+.assistant-deep-link:hover, .assistant-retry:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.assistant-followups { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+.assistant-followups button { min-height: 44px; border: 1px solid var(--hairline); border-radius: 999px; padding: 7px 9px; color: var(--muted); font-size: 9px; line-height: 1.4; text-align: left; transition: border-color .2s, color .2s; }
+.assistant-followups button:hover { border-color: var(--accent); color: var(--accent); }
+.assistant-thinking { display: flex; width: fit-content; align-items: center; gap: 4px; border: 1px solid var(--hairline); border-radius: 12px; padding: 12px 14px; background: var(--sunken); }
+.assistant-thinking > span:not(.sr-only) { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: assistant-pulse 1s infinite ease-in-out; }
+.assistant-thinking > span:nth-child(2) { animation-delay: .12s; }
+.assistant-thinking > span:nth-child(3) { animation-delay: .24s; }
+@keyframes assistant-message-in { from { opacity: 0; transform: translateY(7px) scale(.99); } to { opacity: 1; transform: none; } }
+@keyframes assistant-pulse { 0%, 70%, 100% { opacity: .3; transform: translateY(0); } 35% { opacity: 1; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) {
+  .assistant-message, .assistant-thinking > span:not(.sr-only) { animation: none; }
+  .assistant-starter:hover { transform: none; }
+}
 @media (min-width: 640px) { .assistant-launcher { bottom: 20px; } }
 @media (min-width: 1700px) {
   .assistant-rail {
@@ -1281,6 +1342,55 @@ nav a:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 }
 @media (max-width: 639px) {
   .assistant-launcher { display: none; }
+}
+
+/* Schedule turns the policy demo into a week-at-a-glance executive workflow. */
+.schedule-heading-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+.schedule-live-pill { display: inline-flex; min-height: 36px; flex: none; align-items: center; gap: 8px; border: 1px solid var(--hairline); border-radius: 999px; padding: 7px 12px; background: var(--sunken); color: var(--muted); font-size: 11px; font-weight: 650; }
+.schedule-live-pill > span { width: 7px; height: 7px; border-radius: 50%; background: var(--low); box-shadow: 0 0 0 4px color-mix(in srgb, var(--low) 13%, transparent); }
+.schedule-agenda-card { overflow: hidden; }
+.schedule-card-intro { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: -4px 0 16px; }
+.schedule-refresh { min-height: 44px; flex: none; border-radius: 9px; padding: 8px 10px; color: var(--accent); font-size: 11px; font-weight: 750; }
+.schedule-refresh:hover { background: var(--accent-soft); }
+.agenda-list { overflow: hidden; border: 1px solid var(--hairline); border-radius: 18px; background: var(--sunken); }
+.agenda-event { display: grid; grid-template-columns: 46px 12px minmax(0, 1fr) auto; align-items: center; gap: 13px; min-height: 91px; padding: 13px 16px; transition: background .2s; }
+.agenda-event + .agenda-event { border-top: 1px solid var(--hairline); }
+.agenda-event:hover { background: color-mix(in srgb, var(--accent) 5%, var(--surface)); }
+.agenda-date { display: flex; flex-direction: column; align-items: center; border-right: 1px solid var(--hairline); padding-right: 13px; }
+.agenda-date strong { color: var(--accent); font-size: 9px; letter-spacing: .12em; }
+.agenda-date span { margin-top: 2px; font-size: 25px; font-weight: 680; line-height: 1; letter-spacing: -.04em; }
+.agenda-rail { position: relative; align-self: stretch; width: 1px; margin-left: 5px; background: var(--hairline); }
+.agenda-rail > span { position: absolute; left: -4px; top: 50%; width: 9px; height: 9px; transform: translateY(-50%); border: 2px solid var(--surface); border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.agenda-copy { min-width: 0; }
+.agenda-time { color: var(--accent); font-size: 10px; font-weight: 750; letter-spacing: .06em; text-transform: uppercase; }
+.agenda-copy h3 { overflow: hidden; margin: 3px 0; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 680; }
+.agenda-move { min-height: 44px; font-size: 11px; }
+.schedule-empty { display: grid; min-height: 160px; place-items: center; align-content: center; gap: 8px; border: 1px dashed var(--border); border-radius: 18px; color: var(--muted); font-size: 13px; }
+.schedule-empty span { color: var(--accent); font-size: 26px; }
+.reschedule-panel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, .62fr) auto; align-items: end; gap: 16px; margin-top: 14px; border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--hairline)); border-radius: 17px; padding: 17px; background: linear-gradient(135deg, var(--accent-soft), var(--surface)); animation: assistant-message-in .28s var(--ease) both; }
+.reschedule-field span { display: block; margin-bottom: 6px; color: var(--muted); font-size: 10px; font-weight: 750; letter-spacing: .11em; text-transform: uppercase; }
+.reschedule-field input { min-height: 44px; width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--surface); color: var(--text); font-size: 13px; }
+.schedule-alert { display: flex; align-items: flex-start; gap: 8px; margin-top: 13px; border-radius: 12px; padding: 11px 13px; font-size: 12px; line-height: 1.5; }
+.schedule-alert-error { border: 1px solid color-mix(in srgb, var(--high) 30%, var(--hairline)); background: var(--high-soft); color: var(--text); }
+.schedule-alert-success { border: 1px solid color-mix(in srgb, var(--low) 30%, var(--hairline)); background: var(--low-soft); color: var(--text); }
+.schedule-alert-success span { color: var(--low); font-weight: 900; }
+.schedule-section-label { display: flex; align-items: baseline; gap: 12px; padding: 10px 3px 0; }
+.schedule-section-label span { color: var(--accent); font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.schedule-section-label p { font-size: 14px; font-weight: 650; }
+@media (max-width: 820px) {
+  .reschedule-panel { grid-template-columns: 1fr; align-items: stretch; }
+}
+@media (max-width: 639px) {
+  .schedule-heading-row { display: block; }
+  .schedule-live-pill { margin-top: 18px; }
+  .schedule-card-intro { align-items: flex-start; }
+  .agenda-event { grid-template-columns: 40px 8px minmax(0, 1fr); gap: 9px; padding: 12px; }
+  .agenda-move { grid-column: 3; justify-self: start; margin-top: 2px; }
+  .agenda-date { padding-right: 9px; }
+  .agenda-copy h3 { white-space: normal; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reschedule-panel { animation: none; }
 }
 
 /* Sign in uses the same ink, surf and sun palette as the executive overview. */

@@ -40,6 +40,7 @@ export interface CalendarConnector {
     start: string;
     end: string;
     subject: string;
+    sensitivity: "normal" | "confidential";
   } & ({ approvalId: string; policyGrantId?: never } | { approvalId?: never; policyGrantId: string })): Promise<{ eventId: string }>;
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import type { MeetingProposal } from "@/core/contracts";
+import { useCallback, useEffect, useState } from "react";
+import type { CalendarEvent, MeetingProposal } from "@/core/contracts";
 import { Card, OutcomeBadge, Reason } from "@/components/primitives";
 
 const REQUESTERS = [
@@ -12,6 +12,14 @@ const REQUESTERS = [
 ];
 
 export default function SchedulePage() {
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [agendaLoading, setAgendaLoading] = useState(true);
+  const [agendaError, setAgendaError] = useState<string | null>(null);
+  const [timezone, setTimezone] = useState("America/Los_Angeles");
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [newStart, setNewStart] = useState("");
+  const [rescheduling, setRescheduling] = useState(false);
+  const [scheduleNotice, setScheduleNotice] = useState<string | null>(null);
   const [requesterId, setRequesterId] = useState("p_dir_ops");
   const [purpose, setPurpose] = useState("West region remodel pilot review");
   const [duration, setDuration] = useState(30);
@@ -23,6 +31,59 @@ export default function SchedulePage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [bookingClosed, setBookingClosed] = useState(false);
+
+  const loadAgenda = useCallback(async () => {
+    setAgendaError(null);
+    try {
+      const response = await fetch("/api/calendar-events");
+      const data = await response.json() as { events?: CalendarEvent[]; actor?: { timezone?: string }; error?: string };
+      if (!response.ok || !Array.isArray(data.events)) throw new Error(data.error ?? "Your schedule could not be loaded.");
+      setEvents(data.events);
+      setTimezone(data.actor?.timezone ?? "America/Los_Angeles");
+    } catch (cause) {
+      setAgendaError(cause instanceof Error ? cause.message : "Your schedule could not be loaded.");
+    } finally {
+      setAgendaLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void loadAgenda(); }, [loadAgenda]);
+
+  function beginReschedule(event: CalendarEvent) {
+    setEditingEvent(event);
+    setNewStart(toLocalInput(event.start, timezone));
+    setScheduleNotice(null);
+    setAgendaError(null);
+  }
+
+  async function reschedule() {
+    if (!editingEvent || !newStart) return;
+    const start = zonedLocalToDate(newStart, timezone);
+    if (Number.isNaN(start.getTime())) {
+      setAgendaError("Choose a valid date and time.");
+      return;
+    }
+    setRescheduling(true);
+    setAgendaError(null);
+    try {
+      const response = await fetch(`/api/calendar-events/${encodeURIComponent(editingEvent.eventId)}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ start: start.toISOString() }),
+      });
+      const data = await response.json() as { event?: CalendarEvent; error?: string };
+      if (!response.ok || !data.event) throw new Error(data.error ?? "The event could not be moved.");
+      setEvents((current) => current
+        .map((event) => event.eventId === data.event!.eventId ? data.event! : event)
+        .sort((a, b) => a.start.localeCompare(b.start)));
+      setEditingEvent(null);
+      setScheduleNotice(`${data.event.subject ?? "Event"} moved to ${formatEventTime(data.event, timezone)}. The change is in the audit trail.`);
+    } catch (cause) {
+      setAgendaError(cause instanceof Error ? cause.message : "The event could not be moved.");
+    } finally {
+      setRescheduling(false);
+    }
+  }
 
   async function propose() {
     if (!purpose.trim()) {
@@ -83,7 +144,7 @@ export default function SchedulePage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "The selected time could not be confirmed.");
       if (data.execution?.kind === "calendar_event_created") {
-        setOutcome(`Invitation created for ${formatSlot(proposal.slots[selectedSlot])} (simulated). Recorded in the audit trail.`);
+        setOutcome(`Invitation created for ${formatSlot(proposal.slots[selectedSlot], timezone)} (simulated). Recorded in the audit trail.`);
         setProposal(data.proposal ?? { ...proposal, status: "approved" });
         setBookingClosed(true);
       } else if (data.approval) {
@@ -100,17 +161,56 @@ export default function SchedulePage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="schedule-page space-y-5">
       <header className="page-head enter">
-        <p className="page-eyebrow">Daily work</p>
-        <h1 className="t-title mt-2">Schedule</h1>
-        <p className="muted t-body mt-2 max-w-prose">
-          Who may book directly, and who goes through the assistant, is a company rule,
-          not an availability question.
-        </p>
+        <div className="schedule-heading-row">
+          <div>
+            <p className="page-eyebrow">Daily work</p>
+            <h1 className="t-title mt-2">Schedule</h1>
+            <p className="muted t-body mt-2 max-w-prose">See the week, safely adjust owned events, and route new requests through the right human checkpoint.</p>
+          </div>
+          <div className="schedule-live-pill"><span aria-hidden="true" />Synthetic calendar · {shortTimezone(timezone)}</div>
+        </div>
       </header>
 
-      <Card title="Request time with Maya Hollis (CEO)">
+      <Card title="Your upcoming schedule" className="schedule-agenda-card enter" style={{ "--i": 1 } as React.CSSProperties}>
+        <div className="schedule-card-intro">
+          <p className="muted t-caption">Event details are shown only for your own simulated calendar. Other people remain free/busy only.</p>
+          <button type="button" className="schedule-refresh tap" onClick={() => { setAgendaLoading(true); void loadAgenda(); }} disabled={agendaLoading}>Refresh</button>
+        </div>
+        {agendaLoading ? <AgendaSkeleton /> : events.length === 0 ? (
+          <div className="schedule-empty"><span aria-hidden="true">◇</span><p>No owned events in this demo window.</p></div>
+        ) : (
+          <ol className="agenda-list">
+            {events.map((event, index) => (
+              <li key={event.eventId} className="agenda-event enter" style={{ "--i": index + 1 } as React.CSSProperties}>
+                <div className="agenda-date" aria-hidden="true"><strong>{formatDay(event.start, timezone)}</strong><span>{formatDateNumber(event.start, timezone)}</span></div>
+                <div className="agenda-rail"><span /></div>
+                <div className="agenda-copy">
+                  <p className="agenda-time">{formatEventTime(event, timezone)}</p>
+                  <h3>{event.subject}</h3>
+                  <p className="muted t-caption">{event.attendeeIds?.length ? `${event.attendeeIds.length} attendee${event.attendeeIds.length === 1 ? "" : "s"}` : "Focus time"} · Owned event</p>
+                </div>
+                <button type="button" className="btn agenda-move" onClick={() => beginReschedule(event)}>Move</button>
+              </li>
+            ))}
+          </ol>
+        )}
+
+        {editingEvent && (
+          <div className="reschedule-panel" role="region" aria-label={`Move ${editingEvent.subject}`}>
+            <div><p className="page-eyebrow">Adjust event</p><h3 className="t-section mt-1">Move {editingEvent.subject}</h3><p className="muted t-caption mt-1">Duration stays the same. Working hours, protected blocks, and conflicts are checked before the change.</p></div>
+            <label className="reschedule-field"><span>New start</span><input type="datetime-local" value={newStart} onChange={(event) => setNewStart(event.target.value)} /></label>
+            <div className="flex flex-wrap gap-2"><button type="button" className="btn btn-primary" onClick={() => void reschedule()} disabled={rescheduling || !newStart}>{rescheduling ? "Checking…" : "Confirm move"}</button><button type="button" className="btn" onClick={() => setEditingEvent(null)} disabled={rescheduling}>Cancel</button></div>
+          </div>
+        )}
+        {agendaError && <p role="alert" className="schedule-alert schedule-alert-error">{agendaError}</p>}
+        {scheduleNotice && <p role="status" className="schedule-alert schedule-alert-success"><span aria-hidden="true">✓</span>{scheduleNotice}</p>}
+      </Card>
+
+      <div className="schedule-section-label enter"><span>Request flow</span><p>Find policy-safe time with Maya Hollis</p></div>
+
+      <Card title="Request time with Maya Hollis (CEO)" className="enter" style={{ "--i": 2 } as React.CSSProperties}>
         <div className="space-y-3">
           <p className="muted text-xs leading-relaxed">Explore how routing changes for synthetic requesters in the demo directory.</p>
           <Field label="Scenario requester">
@@ -209,7 +309,7 @@ export default function SchedulePage() {
                     <label className="row-item flex cursor-pointer flex-wrap items-center gap-3" style={{ borderColor: selectedSlot === i ? "var(--accent)" : "var(--border)" }}>
                     <input type="radio" name="meeting-slot" checked={selectedSlot === i} onChange={() => setSelectedSlot(i)} disabled={busy || bookingClosed} />
                     <div>
-                      <p className="text-sm font-semibold">{formatSlot(slot)}</p>
+                      <p className="text-sm font-semibold">{formatSlot(slot, timezone)}</p>
                       <p className="muted text-xs">{slot.rationale}</p>
                     </div>
                     </label>
@@ -245,10 +345,63 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function formatSlot(slot: { start: string; end: string }): string {
+function AgendaSkeleton() {
+  return (
+    <div className="space-y-3" aria-busy="true" aria-label="Loading upcoming schedule">
+      {[0, 1, 2].map((item) => <div key={item} className="shimmer h-[82px] rounded-2xl" />)}
+    </div>
+  );
+}
+
+function formatter(timezone: string, options: Intl.DateTimeFormatOptions) {
+  return new Intl.DateTimeFormat("en-US", { timeZone: timezone, ...options });
+}
+
+function formatDay(iso: string, timezone: string): string {
+  return formatter(timezone, { weekday: "short" }).format(new Date(iso)).toUpperCase();
+}
+
+function formatDateNumber(iso: string, timezone: string): string {
+  return formatter(timezone, { day: "numeric" }).format(new Date(iso));
+}
+
+function formatEventTime(event: { start: string; end: string }, timezone: string): string {
+  const time = (iso: string) => formatter(timezone, { hour: "numeric", minute: "2-digit" }).format(new Date(iso));
+  return `${time(event.start)}–${time(event.end)}`;
+}
+
+function toLocalInput(iso: string, timezone: string): string {
+  const parts = formatter(timezone, {
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date(iso));
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((value) => value.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
+}
+
+/** Interpret a timezone-less form value in the executive's IANA timezone. */
+function zonedLocalToDate(value: string, timezone: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!match) return new Date(Number.NaN);
+  const desiredUtc = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), Number(match[4]), Number(match[5]));
+  let candidate = desiredUtc;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const rendered = toLocalInput(new Date(candidate).toISOString(), timezone);
+    const renderedMatch = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(rendered);
+    if (!renderedMatch) return new Date(Number.NaN);
+    const renderedUtc = Date.UTC(Number(renderedMatch[1]), Number(renderedMatch[2]) - 1, Number(renderedMatch[3]), Number(renderedMatch[4]), Number(renderedMatch[5]));
+    candidate += desiredUtc - renderedUtc;
+  }
+  return new Date(candidate);
+}
+
+function shortTimezone(timezone: string): string {
+  return timezone.replace("America/", "").replaceAll("_", " ");
+}
+
+function formatSlot(slot: { start: string; end: string }, timezone: string): string {
   const s = new Date(slot.start);
   const e = new Date(slot.end);
-  const date = s.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
-  const fmt = (d: Date) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const date = formatter(timezone, { weekday: "short", month: "short", day: "numeric" }).format(s);
+  const fmt = (d: Date) => formatter(timezone, { hour: "numeric", minute: "2-digit" }).format(d);
   return `${date}, ${fmt(s)}–${fmt(e)}`;
 }

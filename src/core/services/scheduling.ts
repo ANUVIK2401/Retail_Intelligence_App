@@ -4,6 +4,7 @@ import type {
   BusyBlock,
   MeetingProposal,
   MeetingRequest,
+  Person,
   ProposedSlot,
 } from "@/core/contracts";
 import { evaluatePolicy } from "@/core/policy/engine";
@@ -21,6 +22,17 @@ import { DELEGATIONS, personById } from "@/data/org";
 const calendar = new MockCalendarConnector();
 
 const MINUTE = 60 * 1000;
+
+/** Who may submit an inbound meeting request for the named participants. */
+export function maySubmitMeetingRequest(actor: Person, request: MeetingRequest): boolean {
+  return request.requesterId === actor.id ||
+    request.attendeeIds.includes(actor.id) ||
+    DELEGATIONS.some((delegation) =>
+      delegation.delegateId === actor.id &&
+      delegation.allowedActions.includes("calendar.propose") &&
+      (delegation.executiveId === request.requesterId ||
+        request.attendeeIds.includes(delegation.executiveId)));
+}
 
 /**
  * Policy-aware scheduling.
@@ -106,7 +118,7 @@ export async function proposeMeeting(input: {
       subjectId: proposal.id,
       title: `Meeting request from ${requester.name}: ${request.purpose}`,
       proposedContent: slots
-        .map((s, i) => `Option ${i + 1}: ${formatSlot(s)} — ${s.rationale}`)
+        .map((s, i) => `Option ${i + 1}: ${formatSlot(s, owner.timezone)} — ${s.rationale}`)
         .join("\n"),
       risk: request.sensitivity === "confidential" ? "medium" : "low",
       decision,
@@ -179,7 +191,8 @@ export async function bookAllowedMeeting(input: { actorId: string; proposalId: s
 
   const event = await calendar.createEvent({
     ownerId, attendeeIds: participants, start: slot.start, end: slot.end,
-    subject: request.purpose, policyGrantId: `policy:${proposal.id}:${decision.policyVersion}`,
+    subject: request.purpose, sensitivity: request.sensitivity,
+    policyGrantId: `policy:${proposal.id}:${decision.policyVersion}`,
   });
   const updated = saveProposal({ ...proposal, status: "approved" });
   recordAudit({
@@ -196,7 +209,7 @@ export async function bookAllowedMeeting(input: { actorId: string; proposalId: s
 
 /* ------------------------------------------------------------------ */
 
-function rankSlots(input: {
+export function rankSlots(input: {
   participants: string[];
   busy: BusyBlock[];
   request: MeetingRequest;
@@ -213,8 +226,6 @@ function rankSlots(input: {
     const start = new Date(t);
     const end = new Date(t + duration);
 
-    if (isWeekend(start)) continue;
-
     const reasons: string[] = [];
     let score = 100;
     let viable = true;
@@ -223,9 +234,12 @@ function rankSlots(input: {
       const person = personById(pid);
       if (!person) continue;
 
-      const hour = start.getHours();
-      const endHour = end.getHours() + (end.getMinutes() > 0 ? 1 : 0);
-      if (hour < person.workingHours.startHour || endHour > person.workingHours.endHour) {
+      const localStart = zonedClock(start, person.timezone);
+      const localEnd = zonedClock(end, person.timezone);
+      if (localStart.weekday === "Sat" || localStart.weekday === "Sun" ||
+        localStart.date !== localEnd.date ||
+        localStart.minutes < person.workingHours.startHour * 60 ||
+        localEnd.minutes > person.workingHours.endHour * 60) {
         viable = false;
         break;
       }
@@ -233,7 +247,7 @@ function rankSlots(input: {
       const protectedBlocks = PROTECTED_BLOCKS[pid] ?? [];
       if (
         protectedBlocks.some(
-          (b) => hour < b.endHour && end.getHours() + end.getMinutes() / 60 > b.startHour,
+          (b) => localStart.minutes < b.endHour * 60 && localEnd.minutes > b.startHour * 60,
         )
       ) {
         viable = false;
@@ -259,7 +273,8 @@ function rankSlots(input: {
     if (!viable) continue;
 
     // Prefer mid-morning and early afternoon; penalize the very edges of day.
-    const h = start.getHours();
+    const owner = personById(request.attendeeIds[0]) ?? personById(participants[0]);
+    const h = owner ? Math.floor(zonedClock(start, owner.timezone).minutes / 60) : start.getUTCHours();
     if (h >= 10 && h <= 11) score += 12;
     else if (h >= 13 && h <= 15) score += 6;
     else if (h <= 8 || h >= 17) score -= 10;
@@ -282,8 +297,9 @@ function rankSlots(input: {
   // slots in one afternoon is not a real choice for the requester.
   const ranked = candidates.sort((a, b) => b.score - a.score);
   const byDay = new Map<string, ProposedSlot>();
+  const owner = personById(request.attendeeIds[0]) ?? personById(participants[0]);
   for (const slot of ranked) {
-    const day = slot.start.slice(0, 10);
+    const day = owner ? zonedClock(new Date(slot.start), owner.timezone).date : slot.start.slice(0, 10);
     if (!byDay.has(day)) byDay.set(day, slot);
   }
   const spread = [...byDay.values()].sort((a, b) => b.score - a.score);
@@ -299,20 +315,35 @@ function ceilToHalfHour(t: number): number {
   return d.getTime();
 }
 
-function isWeekend(d: Date): boolean {
-  const day = d.getDay();
-  return day === 0 || day === 6;
+function zonedClock(date: Date, timeZone: string): { date: string; weekday: string; minutes: number } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const read = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    date: `${read("year")}-${read("month")}-${read("day")}`,
+    weekday: read("weekday"),
+    minutes: Number(read("hour")) * 60 + Number(read("minute")),
+  };
 }
 
-export function formatSlot(slot: { start: string; end: string }): string {
+export function formatSlot(slot: { start: string; end: string }, timeZone = "America/Los_Angeles"): string {
   const s = new Date(slot.start);
   const e = new Date(slot.end);
   const date = s.toLocaleDateString("en-US", {
+    timeZone,
     weekday: "short",
     month: "short",
     day: "numeric",
   });
   const fmt = (d: Date) =>
-    d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    d.toLocaleTimeString("en-US", { timeZone, hour: "numeric", minute: "2-digit" });
   return `${date}, ${fmt(s)}–${fmt(e)}`;
 }

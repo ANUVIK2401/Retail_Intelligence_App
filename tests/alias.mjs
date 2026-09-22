@@ -13,6 +13,7 @@ register(
    const ROOT = ${JSON.stringify(root)};
    const CANDIDATES = ["", ".ts", ".tsx", "/index.ts", "/index.tsx"];
    export async function resolve(specifier, context, next) {
+     if (specifier === "next/server" || specifier === "next/headers") return next(specifier + ".js", context);
      if (!specifier.startsWith("@/")) return next(specifier, context);
      const base = ROOT + specifier.slice(2);
      const { existsSync } = await import("node:fs");

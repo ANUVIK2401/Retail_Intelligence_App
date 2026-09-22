@@ -180,6 +180,7 @@ async function handlePOST(
             start: slot.start,
             end: slot.end,
             subject: proposal.request.purpose,
+            sensitivity: proposal.request.sensitivity,
             approvalId: updated.id,
           });
           proposal.status = "approved";

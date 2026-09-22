@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import type {
   ApprovalRequest,
   AuditEvent,
+  CalendarEvent,
   EmailAssessment,
   MeetingProposal,
   MemoryEntry,
@@ -11,6 +12,7 @@ import type {
   WorkspaceMessage,
 } from "@/core/contracts";
 import { POLICY_RULES } from "@/core/policy/engine";
+import { SYNTHETIC_CALENDAR_EVENTS } from "@/data/calendar";
 
 export type State = {
   assessments: Map<string, EmailAssessment>;
@@ -32,7 +34,7 @@ export type State = {
     provider: "mock" | "anthropic" | "openai";
   };
   mockDrafts: Map<string, { messageId: string; body: string; sentAt?: string }>;
-  mockEvents: Map<string, { eventId: string; ownerId: string; attendeeIds?: string[]; start: string; end: string; subject: string }>;
+  mockEvents: Map<string, CalendarEvent>;
   assistantRequests: number;
   seq: number;
 };
@@ -53,7 +55,10 @@ export function freshState(): State {
       provider: process.env.AI_PROVIDER === "anthropic" ? "anthropic" : process.env.AI_PROVIDER === "openai" ? "openai" : "mock",
     },
     mockDrafts: new Map(),
-    mockEvents: new Map(),
+    mockEvents: new Map(SYNTHETIC_CALENDAR_EVENTS.map((event) => [
+      event.eventId,
+      { ...event, attendeeIds: [...(event.attendeeIds ?? [])] },
+    ])),
     assistantRequests: 0,
     seq: 0,
   };

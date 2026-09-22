@@ -23,7 +23,7 @@ async function handlePOST(req: Request) {
   store.assistantRequests += 1;
   const intent = await classifyQuestion(parsed.data.question);
   const facts = await answerFromFacts(actor, parsed.data.question, intent.source);
-  return NextResponse.json({ answer: facts.answer, source: facts.source, model: intent.model, readOnly: true });
+  return NextResponse.json({ ...facts, model: intent.model, readOnly: true });
 }
 
 export const POST = withDemoState(handlePOST);

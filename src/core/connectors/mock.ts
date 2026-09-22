@@ -98,6 +98,7 @@ export class MockCalendarConnector implements CalendarConnector {
     start: string;
     end: string;
     subject: string;
+    sensitivity: "normal" | "confidential";
   } & ({ approvalId: string; policyGrantId?: never } | { approvalId?: never; policyGrantId: string })): Promise<{ eventId: string }> {
     if (Boolean(input.approvalId) === Boolean(input.policyGrantId)) {
       throw new Error("Refused: an event needs exactly one approval or policy grant.");
@@ -120,6 +121,7 @@ export class MockCalendarConnector implements CalendarConnector {
       start: input.start,
       end: input.end,
       subject: input.subject,
+      sensitivity: input.sensitivity,
     });
     return { eventId };
   }
