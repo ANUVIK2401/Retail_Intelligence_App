@@ -1,6 +1,7 @@
 import { checkPersistence } from "@/core/persistence";
 import { readProviderConfig } from "@/core/ai/config";
 import { googleAuthConfigured } from "@/core/auth/membership";
+import { dataSourceKind } from "@/core/connectors/resolve";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +50,10 @@ export async function GET() {
       ? "DATABASE_URL is not set. Attach Postgres in Vercel Storage."
       : `could not connect: ${error instanceof Error ? error.name : "unknown error"}. Check that the connection string is the pooled one.`;
   }
+
+  checks.dataSource = dataSourceKind() === "synthetic"
+    ? "ok (synthetic)"
+    : "DATA_SOURCE=graph selects the Microsoft Graph adapter, which is a stub in this prototype. Unset it to use synthetic data.";
 
   const ok = Object.values(checks).every((v) => v.startsWith("ok"));
 

@@ -1,4 +1,6 @@
-# Executive Command Center demo script
+# Governance walkthrough (earlier demo script)
+
+> The current Sept 23 demo script is [DEMO.md](../DEMO.md). This walkthrough still works for the governance scenes; page names changed: Overview is now Chat with the Today panel, Schedule is Calendar, Approvals is behind `FEATURE_APPROVALS`, and the assistant is the center chat rather than a side panel.
 
 Six minutes. Use synthetic records throughout. The product story is simple: the assistant surfaces the signal and prepares work; named people make consequential decisions.
 

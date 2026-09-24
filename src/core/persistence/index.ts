@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { ACTOR_HEADER, MEMBER_HEADER } from "@/core/deployment/access";
 import { freshState, stateContext, type State } from "@/core/store";
 
-const MAP_KEYS = ["assessments", "approvals", "proposals", "publications", "workspaces", "messages", "memory", "mockDrafts", "mockEvents"] as const;
+const MAP_KEYS = ["assessments", "approvals", "proposals", "publications", "workspaces", "messages", "memory", "mockDrafts", "mockEvents", "snoozes", "sent", "projects"] as const;
 const TTL_MS = 24 * 60 * 60 * 1000;
 export function scopeSessionId(cookieId: string, actorId: string, memberEmail: string, secret: string): string {
   return createHmac("sha256", secret).update(`${memberEmail.toLowerCase()}:${actorId}:${cookieId}`).digest("hex");
@@ -14,7 +14,10 @@ export function serializeState(state: State): string {
 export function deserializeState(value: string | Record<string, unknown>): State {
   const parsed = typeof value === "string" ? JSON.parse(value) : value;
   const base = freshState();
-  return { ...base, ...parsed, ...Object.fromEntries(MAP_KEYS.map((key) => [key, new Map(parsed[key] ?? [])])),
+  // A key missing from an older saved session (projects, snoozes, sent were
+  // added later) takes the fresh default, so existing members still get the
+  // seeded projects instead of an empty map.
+  return { ...base, ...parsed, ...Object.fromEntries(MAP_KEYS.map((key) => [key, parsed[key] === undefined ? base[key] : new Map(parsed[key])])),
     // Configuration is server-owned; deployment changes apply to existing sessions.
     settings: { ...base.settings, simulateCompromisedModel: parsed.settings?.simulateCompromisedModel === true },
   } as State;

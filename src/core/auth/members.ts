@@ -113,7 +113,7 @@ export async function listMembers(): Promise<MemberRecord[]> {
       email,
       actorId: "",
       personaName: "Not yet assigned",
-      personaTitle: "Administrator — assign a role to sign in",
+      personaTitle: "Administrator (assign a role to sign in)",
       admin: true,
       origin: "config",
     });

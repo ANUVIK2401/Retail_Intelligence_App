@@ -112,3 +112,12 @@ test("shared approvals cross member sessions while assessments stay private", as
     assert.equal(store.approvals.has("approval-1"), false);
   }, db, "another-shared-tenant");
 });
+
+test("sessions saved before projects existed still get the seeded projects", async () => {
+  const { deserializeState } = await import("../src/core/persistence/index.ts");
+  const legacy = deserializeState({ seq: 3, audit: [], approvals: [], assessments: [] });
+  assert.equal(legacy.projects.size, 4);
+  assert.equal(legacy.sent.size, 0);
+  const saved = deserializeState({ projects: [] });
+  assert.equal(saved.projects.size, 0, "an explicitly saved empty map stays empty");
+});

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MemoryCategory, MemoryEntry, Workspace, WorkspaceMessage } from "@/core/contracts";
 import { Card, Empty, Reason, relativeTime } from "@/components/primitives";
+import { changeProjectLink } from "@/components/projectLinks";
 
 /**
  * Brainstorming workspace. Private to the executive; nothing here becomes
@@ -43,6 +44,8 @@ export default function WorkspacePage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [noticeError, setNoticeError] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [allNotes, setAllNotes] = useState<Workspace[]>([]);
+  const [projects, setProjects] = useState<{ id: string; name: string; workspaceIds: string[] }[]>([]);
   const initialized = useRef(false);
 
   const load = useCallback(async (id: string) => {
@@ -64,7 +67,12 @@ export default function WorkspacePage() {
       if (!listResponse.ok) throw new Error(`HTTP ${listResponse.status}`);
       const listed = await listResponse.json();
       if (!Array.isArray(listed.workspaces)) throw new Error("Invalid workspace list");
-      const existing: Workspace | undefined = listed.workspaces?.[0];
+      setAllNotes(listed.workspaces as Workspace[]);
+      fetch("/api/projects").then((response) => response.ok ? response.json() : null)
+        .then((data) => setProjects(data?.projects ?? [])).catch(() => setProjects([]));
+      // A project page can open its own notes with ?ws=<id>.
+      const requested = new URLSearchParams(window.location.search).get("ws");
+      const existing: Workspace | undefined = (listed.workspaces as Workspace[]).find((item) => item.id === requested) ?? listed.workspaces?.[0];
       if (existing) {
         await load(existing.id);
         return;
@@ -77,9 +85,12 @@ export default function WorkspacePage() {
       if (!createResponse.ok) throw new Error(`HTTP ${createResponse.status}`);
       const created = await createResponse.json();
       if (!created.workspace?.id) throw new Error("Invalid new workspace");
+      // The seeded notes belong to the seeded Denim project, so its Notes tab
+      // shows saved project context. Best effort: other personas have no such project.
+      await changeProjectLink("pr_denim", { op: "add", kind: "workspace", id: created.workspace.id });
       await load(created.workspace.id);
     } catch {
-      setLoadError("Your workspace could not be loaded. Please try again.");
+      setLoadError("Your notes could not be loaded. Please try again.");
     }
   }, [load]);
 
@@ -151,9 +162,9 @@ export default function WorkspacePage() {
     }
   }
 
-  if (!workspace && !loadError) return <p className="muted py-10 text-center text-sm" role="status">Loading your workspace…</p>;
+  if (!workspace && !loadError) return <p className="muted py-10 text-center text-sm" role="status">Loading your notes…</p>;
   if (!workspace) return (
-    <Card title="Workspace unavailable">
+    <Card title="Notes unavailable">
       <p className="muted text-sm">{loadError}</p>
       <button type="button" className="btn mt-3" onClick={() => void initialize()}>Retry</button>
     </Card>
@@ -162,12 +173,42 @@ export default function WorkspacePage() {
   return (
     <div className="space-y-5">
       <header className="page-head enter">
-        <p className="page-eyebrow">Intelligence</p>
-        <h1 className="t-title mt-2">Workspace</h1>
+        <p className="page-eyebrow">Private</p>
+        <h1 className="t-title mt-2">Notes</h1>
         <p className="muted t-body mt-2 max-w-prose">
-          A private space to explore ideas. You decide which conclusions become lasting memory.
+          Personal notes, ideas, tasks, and reminders. Think out loud with the assistant; you decide
+          which conclusions become lasting memory.
         </p>
       </header>
+
+      <div className="flex flex-wrap items-center gap-3">
+        {allNotes.length > 1 && (
+          <label className="add-to-project">
+            <span className="sr-only">Open notes</span>
+            <select value={workspace.id} onChange={(event) => void load(event.target.value)}>
+              {allNotes.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
+            </select>
+          </label>
+        )}
+        {projects.length > 0 && (() => {
+          const linked = projects.find((project) => project.workspaceIds.includes(workspace.id));
+          return linked ? (
+            <span className="project-chip">In project: {linked.name}</span>
+          ) : (
+            <label className="add-to-project">
+              <span className="sr-only">Add these notes to a project</span>
+              <select value="" onChange={async (event) => {
+                const projectId = event.target.value;
+                if (!projectId) return;
+                if (await changeProjectLink(projectId, { op: "add", kind: "workspace", id: workspace.id })) setProjects((current) => current.map((project) => project.id === projectId ? { ...project, workspaceIds: [...project.workspaceIds, workspace.id] } : project));
+              }}>
+                <option value="">Add to project…</option>
+                {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+              </select>
+            </label>
+          );
+        })()}
+      </div>
 
       <Card title={workspace.title}>
         {messages.length === 0 ? (

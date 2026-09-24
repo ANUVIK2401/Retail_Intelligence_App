@@ -1,4 +1,4 @@
-import { MockCalendarConnector } from "@/core/connectors/mock";
+import { connectors } from "@/core/connectors/resolve";
 import type {
   ApprovalRequest,
   BusyBlock,
@@ -16,12 +16,12 @@ import {
   saveProposal,
   store,
 } from "@/core/store";
-import { PROTECTED_BLOCKS } from "@/data/calendar";
+import { FOCUS_BLOCKS, PROTECTED_BLOCKS } from "@/data/calendar";
+import { findSlots } from "@/core/scheduling/availability";
 import { DELEGATIONS, personById } from "@/data/org";
 
-const calendar = new MockCalendarConnector();
+const calendar = connectors().calendar;
 
-const MINUTE = 60 * 1000;
 
 /** Who may submit an inbound meeting request for the named participants. */
 export function maySubmitMeetingRequest(actor: Person, request: MeetingRequest): boolean {
@@ -43,6 +43,8 @@ export function maySubmitMeetingRequest(actor: Person, request: MeetingRequest):
 export async function proposeMeeting(input: {
   actorId: string;
   request: MeetingRequest;
+  /** How many ranked options to keep; chat keeps extra for "show more times". */
+  slotLimit?: number;
 }): Promise<{ proposal: MeetingProposal; approval: ApprovalRequest | null }> {
   const correlationId = nextId("cor");
   const { request } = input;
@@ -81,6 +83,7 @@ export async function proposeMeeting(input: {
     participants,
     busy,
     request,
+    limit: input.slotLimit,
   });
 
   const proposal: MeetingProposal = {
@@ -118,7 +121,7 @@ export async function proposeMeeting(input: {
       subjectId: proposal.id,
       title: `Meeting request from ${requester.name}: ${request.purpose}`,
       proposedContent: slots
-        .map((s, i) => `Option ${i + 1}: ${formatSlot(s, owner.timezone)} — ${s.rationale}`)
+        .map((s, i) => `Option ${i + 1}: ${formatSlot(s, owner.timezone)} · ${s.rationale}`)
         .join("\n"),
       risk: request.sensitivity === "confidential" ? "medium" : "low",
       decision,
@@ -160,7 +163,7 @@ export class MeetingBookingError extends Error {
 }
 
 /** Book a chosen slot when both proposal and write policy explicitly allow it. */
-export async function bookAllowedMeeting(input: { actorId: string; proposalId: string; slotIndex: number }) {
+export async function bookAllowedMeeting(input: { actorId: string; proposalId: string; slotIndex: number; subject?: string }) {
   const proposal = getProposal(input.proposalId);
   if (!proposal) throw new MeetingBookingError("Meeting proposal not found.", 404);
   const { request } = proposal;
@@ -191,7 +194,7 @@ export async function bookAllowedMeeting(input: { actorId: string; proposalId: s
 
   const event = await calendar.createEvent({
     ownerId, attendeeIds: participants, start: slot.start, end: slot.end,
-    subject: request.purpose, sensitivity: request.sensitivity,
+    subject: input.subject?.trim() || request.purpose, sensitivity: request.sensitivity,
     policyGrantId: `policy:${proposal.id}:${decision.policyVersion}`,
   });
   const updated = saveProposal({ ...proposal, status: "approved" });
@@ -213,125 +216,24 @@ export function rankSlots(input: {
   participants: string[];
   busy: BusyBlock[];
   request: MeetingRequest;
+  limit?: number;
 }): ProposedSlot[] {
-  const { participants, busy, request } = input;
-  const duration = request.durationMinutes * MINUTE;
-  const from = new Date(request.earliest).getTime();
-  const to = new Date(request.latest).getTime();
-
-  const candidates: ProposedSlot[] = [];
-  const STEP = 30 * MINUTE;
-
-  for (let t = ceilToHalfHour(from); t + duration <= to; t += STEP) {
-    const start = new Date(t);
-    const end = new Date(t + duration);
-
-    const reasons: string[] = [];
-    let score = 100;
-    let viable = true;
-
-    for (const pid of participants) {
-      const person = personById(pid);
-      if (!person) continue;
-
-      const localStart = zonedClock(start, person.timezone);
-      const localEnd = zonedClock(end, person.timezone);
-      if (localStart.weekday === "Sat" || localStart.weekday === "Sun" ||
-        localStart.date !== localEnd.date ||
-        localStart.minutes < person.workingHours.startHour * 60 ||
-        localEnd.minutes > person.workingHours.endHour * 60) {
-        viable = false;
-        break;
-      }
-
-      const protectedBlocks = PROTECTED_BLOCKS[pid] ?? [];
-      if (
-        protectedBlocks.some(
-          (b) => localStart.minutes < b.endHour * 60 && localEnd.minutes > b.startHour * 60,
-        )
-      ) {
-        viable = false;
-        break;
-      }
-
-      const conflicts = busy.filter(
-        (b) =>
-          b.personId === pid &&
-          new Date(b.start).getTime() < t + duration &&
-          new Date(b.end).getTime() > t,
-      );
-      if (conflicts.some((c) => c.status === "busy" || c.status === "out_of_office")) {
-        viable = false;
-        break;
-      }
-      if (conflicts.some((c) => c.status === "tentative")) {
-        score -= 25;
-        reasons.push(`${person.name} is tentatively held`);
-      }
-    }
-
-    if (!viable) continue;
-
-    // Prefer mid-morning and early afternoon; penalize the very edges of day.
-    const owner = personById(request.attendeeIds[0]) ?? personById(participants[0]);
-    const h = owner ? Math.floor(zonedClock(start, owner.timezone).minutes / 60) : start.getUTCHours();
-    if (h >= 10 && h <= 11) score += 12;
-    else if (h >= 13 && h <= 15) score += 6;
-    else if (h <= 8 || h >= 17) score -= 10;
-
-    // Prefer sooner.
-    const daysOut = Math.floor((t - from) / (24 * 60 * MINUTE));
-    score -= daysOut * 3;
-
-    if (reasons.length === 0) reasons.push("All participants free, inside working hours");
-
-    candidates.push({
-      start: start.toISOString(),
-      end: end.toISOString(),
-      score,
-      rationale: reasons.join("; "),
-    });
-  }
-
-  // Prefer one option per day before offering a second on the same day: three
-  // slots in one afternoon is not a real choice for the requester.
-  const ranked = candidates.sort((a, b) => b.score - a.score);
-  const byDay = new Map<string, ProposedSlot>();
-  const owner = personById(request.attendeeIds[0]) ?? personById(participants[0]);
-  for (const slot of ranked) {
-    const day = owner ? zonedClock(new Date(slot.start), owner.timezone).date : slot.start.slice(0, 10);
-    if (!byDay.has(day)) byDay.set(day, slot);
-  }
-  const spread = [...byDay.values()].sort((a, b) => b.score - a.score);
-  const filler = ranked.filter((s) => !spread.includes(s));
-  return [...spread, ...filler].slice(0, 3);
-}
-
-function ceilToHalfHour(t: number): number {
-  const d = new Date(t);
-  d.setSeconds(0, 0);
-  const m = d.getMinutes();
-  d.setMinutes(m <= 0 ? 0 : m <= 30 ? 30 : 60);
-  return d.getTime();
-}
-
-function zonedClock(date: Date, timeZone: string): { date: string; weekday: string; minutes: number } {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(date);
-  const read = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
-  return {
-    date: `${read("year")}-${read("month")}-${read("day")}`,
-    weekday: read("weekday"),
-    minutes: Number(read("hour")) * 60 + Number(read("minute")),
-  };
+  const { request } = input;
+  const people = input.participants.map((id) => personById(id)).filter((person): person is Person => Boolean(person));
+  const owner = personById(request.attendeeIds[0]) ?? people[0];
+  // The same engine serves the Calendar page form and the chat, so both
+  // offer identical times for identical requests.
+  return findSlots({
+    participants: people,
+    busy: input.busy,
+    durationMinutes: request.durationMinutes,
+    from: request.earliest,
+    to: request.latest,
+    constraints: { timezone: owner?.timezone ?? "America/Los_Angeles", ...request.constraints },
+    protectedBlocks: PROTECTED_BLOCKS,
+    focusBlocks: FOCUS_BLOCKS,
+    limit: input.limit ?? 3,
+  }).map(({ start, end, score, rationale }) => ({ start, end, score, rationale }));
 }
 
 export function formatSlot(slot: { start: string; end: string }, timeZone = "America/Los_Angeles"): string {

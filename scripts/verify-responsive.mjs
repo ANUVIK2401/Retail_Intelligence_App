@@ -7,7 +7,6 @@
  *
  *   1. horizontal scroll (the page slides sideways under your thumb)
  *   2. touch targets under 44px (constitution requirement)
- *   3. content hidden behind the fixed bottom bar or the floating button
  *
  * Run:  node scripts/verify-responsive.mjs [baseUrl]
  */
@@ -27,10 +26,12 @@ const SIZES = [
   [1920, 1080, "desktop"],
 ];
 
-const PAGES = ["/", "/inbox", "/schedule", "/approvals", "/insights", "/workspace", "/publish", "/admin", "/audit", "/org-chart"];
+const PAGES = ["/", "/inbox", "/schedule", "/projects", "/projects/pr_denim", "/insights", "/workspace", "/publish", "/org-chart", "/controls", "/audit", "/admin"];
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext();
+// The first-run tour is a modal; measure the pages behind it.
+await ctx.addInitScript(() => { try { localStorage.setItem("ecc:executive-onboarding:v1:p_ceo", "dismissed"); } catch { /* ignore */ } });
 const page = await ctx.newPage();
 
 let pass = 0;

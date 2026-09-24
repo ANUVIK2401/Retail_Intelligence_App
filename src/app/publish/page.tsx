@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PolicyDecision } from "@/core/contracts";
 import { Card, OutcomeBadge, Reason } from "@/components/primitives";
+import { useSession } from "@/components/session";
 
 type CheckResult = {
   name: string;
@@ -87,6 +88,7 @@ It will change what this company is. Watch this space over the next few weeks.`,
 ];
 
 export default function PublishPage() {
+  const approvalsOn = useSession()?.features.approvals ?? false;
   const [draftId, setDraftId] = useState(DRAFTS[0].id);
   const [body, setBody] = useState(DRAFTS[0].body);
   const [result, setResult] = useState<ReviewPayload | null>(null);
@@ -246,11 +248,11 @@ export default function PublishPage() {
   return (
     <div className="space-y-5">
       <header className="page-head enter">
-        <p className="page-eyebrow">Intelligence</p>
-        <h1 className="t-title mt-2">Publish</h1>
+        <p className="page-eyebrow">Your voice</p>
+        <h1 className="t-title mt-2">Posts</h1>
         <p className="muted t-body mt-2 max-w-prose">
-          Draft, check, review, approve, export. The prototype never posts to an external
-          platform.
+          Draft LinkedIn and other professional posts in your own voice. Each draft is checked,
+          reviewed by the right people, and exported for you to post. Nothing is posted from here.
         </p>
       </header>
 
@@ -355,11 +357,13 @@ export default function PublishPage() {
           </p>
           <p className="muted mt-2 text-[13px]">
             {error.kind === "approval"
-              ? "The reviewer named in this step must sign in with their own authorized account, then open Approvals to decide it."
+              ? approvalsOn
+                ? "The reviewer named in this step must sign in with their own authorized account, then open Approvals to decide it."
+                : "The reviewer named in this step must sign in with their own authorized account to confirm it. Every step is recorded in Audit history."
               : "Review did not complete. Check the message above and run the checks again."}
           </p>
           {error.kind === "approval" && (
-            <Link href="/approvals" className="btn mt-3 inline-flex">Open Approvals</Link>
+            <Link href={approvalsOn ? "/approvals" : "/audit"} className="btn mt-3 inline-flex">{approvalsOn ? "Open Approvals" : "Open Audit history"}</Link>
           )}
           {error.kind === "checks" && (
             <button type="button" className="btn mt-3" disabled={running} onClick={() => void run(body)}>
@@ -429,8 +433,8 @@ export default function PublishPage() {
                     </p>
                     {approval.status !== "approved" && approval.status !== "completed" && (
                       <p className="muted mt-2 text-[12px] leading-relaxed">
-                        The assigned reviewer can sign in with their account and complete this step in{" "}
-                        <Link href="/approvals" className="font-semibold underline underline-offset-2" style={{ color: "var(--accent)" }}>Approvals</Link>.
+                        {approvalsOn ? <>The assigned reviewer can sign in with their account and complete this step in{" "}
+                        <Link href="/approvals" className="font-semibold underline underline-offset-2" style={{ color: "var(--accent)" }}>Approvals</Link>.</> : "The assigned reviewer confirms this step when they sign in with their own account."}
                       </p>
                     )}
                   </div>
@@ -516,7 +520,7 @@ export default function PublishPage() {
           </Card>
 
           {result.exported && (
-            <Card title={`Exported — ${result.exported.filename}`}>
+            <Card title={`Exported: ${result.exported.filename}`}>
               <pre
                 className="whitespace-pre-wrap rounded-lg border p-3 font-mono text-[11px] leading-relaxed"
                 style={{ borderColor: "var(--border)", background: "var(--bg)" }}
@@ -556,8 +560,8 @@ export default function PublishPage() {
         <p className="muted text-[13px] leading-relaxed">
           Direct posting to LinkedIn, Substack, or Instagram is out of scope until API
           eligibility, ownership of the corporate accounts, and the review policy are
-          confirmed with the client. There is no publish function in the code — not a
-          disabled one — so enabling posting requires writing new code that a reviewer
+          confirmed with the client. There is no publish function in the code, not even a
+          disabled one, so enabling posting requires writing new code that a reviewer
           would see.
         </p>
       </Card>

@@ -330,7 +330,7 @@ export default function MessagePage() {
                   ? "Edits submitted for approval are recorded in the audit trail alongside the original text."
                   : a.draftDecision.outcome === "allow"
                     ? "This suggestion is ready to copy into your mail client. Nothing is sent from this page."
-                    : "The approval request is available in Approvals when assigned to your identity."}
+                    : "This needs a sign-off before anything is drafted in your mailbox. The named reviewer confirms it with their own account, and every step is recorded in Audit history."}
               </p>
               {approval && (
                 <div className="mt-3 flex flex-wrap gap-2">

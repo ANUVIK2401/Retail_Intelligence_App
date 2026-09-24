@@ -30,7 +30,7 @@ export default function AuditPage() {
   return (
     <div className="space-y-5">
       <header className="page-head enter">
-        <p className="page-eyebrow">Governance</p>
+        <p className="page-eyebrow">Settings</p>
         <h1 className="t-title mt-2">Audit history</h1>
         <p className="muted t-body mt-2 max-w-prose">
           Assessment, policy, approval, refusal, and connector activity for this signed-in

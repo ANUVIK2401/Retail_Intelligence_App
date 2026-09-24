@@ -100,7 +100,7 @@ export default function AdminPage() {
     return (
       <div className="space-y-5">
         <header className="page-head enter">
-          <p className="page-eyebrow">Deployment</p>
+          <p className="page-eyebrow">Settings</p>
           <h1 className="t-title mt-2">Administration</h1>
         </header>
         <Card title="Not available to this account">
@@ -119,11 +119,11 @@ export default function AdminPage() {
   return (
     <div className="space-y-5">
       <header className="page-head enter">
-        <p className="page-eyebrow">Deployment</p>
+        <p className="page-eyebrow">Settings</p>
         <h1 className="t-title mt-2">Administration</h1>
         <p className="muted t-body mt-2 max-w-prose">
           Onboard people and assign the role they act as. The policy engine decides what
-          each role may do — this page never grants a permission directly.
+          each role may do. This page never grants a permission directly.
         </p>
       </header>
 
@@ -167,7 +167,7 @@ export default function AdminPage() {
             >
               {data.roles.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.name} — {r.title}
+                  {r.name}, {r.title}
                 </option>
               ))}
             </select>
@@ -225,7 +225,7 @@ export default function AdminPage() {
                   </p>
                   <p className="muted text-xs">
                     {m.actorId
-                      ? `Acts as ${m.personaName} — ${m.personaTitle}`
+                      ? `Acts as ${m.personaName}, ${m.personaTitle}`
                       : m.personaTitle}
                   </p>
                   <p className="muted text-[11px]">

@@ -67,6 +67,18 @@ what it tests. The 84-check suite passed while all four high findings were
 live, because it tested restricted access on the inbox routes and never on the
 assessment, dashboard, or approval-listing routes.
 
+**Sept 23 review revamp (2026-09-24).** The interface was rebuilt around the
+review's direction: chat in the center with a Today panel, multi-person
+scheduling from a sentence (pure availability engine plus deterministic
+parser, optional model extraction), voice input, mobile inbox triage (reply,
+quick reply, later), Projects, plain-language navigation, the product renamed
+to PacSun Executive Assistant, and the Approvals queue behind
+`FEATURE_APPROVALS`. A relational target schema with row-level security and a
+`DATA_SOURCE` seam were added (`docs/architecture.md`). Verification at that
+point: 165 unit tests, `verify-demo.sh` 161/161 (in-memory and on Postgres 16),
+`npm run e2e` 29/29 (laptop, phone, voice), and the responsive sweep 108/108.
+The demo script is `DEMO.md`.
+
 ---
 
 ## Remaining before the meeting

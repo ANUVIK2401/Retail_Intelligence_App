@@ -2,7 +2,7 @@ import { withDemoState } from "@/core/persistence";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 import { NextResponse } from "next/server";
-import { MockMailConnector } from "@/core/connectors/mock";
+import { connectors } from "@/core/connectors/resolve";
 import { evaluatePolicy } from "@/core/policy/engine";
 import { evaluateDeterministicRisk } from "@/core/risk/rules";
 import { canSeeApproval } from "@/core/access";
@@ -10,7 +10,7 @@ import { actorFromRequest } from "@/core/session";
 import { getAssessment, listApprovals, store } from "@/core/store";
 import { personById, RESTRICTED_ACCESS } from "@/data/org";
 
-const mail = new MockMailConnector();
+const mail = connectors().mail;
 
 async function handleGET(
   req: Request,

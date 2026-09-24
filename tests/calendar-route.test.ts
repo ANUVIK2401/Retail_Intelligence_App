@@ -22,9 +22,12 @@ test("calendar routes list owned events and preserve duration on a valid move", 
     assert.equal(listed.status, 200);
     const payload = await listed.json() as { events: { eventId: string; ownerId: string; start: string; end: string }[] };
     assert.ok(payload.events.length > 0);
-    assert.ok(payload.events.every((event) => event.ownerId === "p_ceo"));
+    // Owned events, plus meetings the CEO was invited to. Nobody else's calendar.
+    const withAttendees = payload.events as { ownerId: string; attendeeIds?: string[] }[];
+    assert.ok(withAttendees.every((event) => event.ownerId === "p_ceo" || (event.attendeeIds ?? []).includes("p_ceo")));
+    assert.ok(withAttendees.some((event) => event.ownerId !== "p_ceo"), "invited meetings are listed too");
 
-    const original = payload.events[0];
+    const original = payload.events.find((event) => event.ownerId === "p_ceo")!;
     const start = new Date(Date.parse(original.start) + 14 * 24 * 60 * 60 * 1000).toISOString();
     const moved = await PATCH(new Request(`http://localhost/api/calendar-events/${original.eventId}`, {
       method: "PATCH",

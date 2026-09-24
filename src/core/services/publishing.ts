@@ -395,7 +395,7 @@ export function exportForHuman(input: {
         `Approved by: ${input.approvedBy.join(" -> ")}`,
       ]
     : [
-        `Status: DRAFT — NOT APPROVED. Do not post this text.`,
+        `Status: DRAFT, NOT APPROVED. Do not post this text.`,
         `Approval id: ${input.approvalId ?? "none requested"}`,
         input.approvedBy.length > 0
           ? `Decisions so far: ${input.approvedBy.join(" -> ")}`

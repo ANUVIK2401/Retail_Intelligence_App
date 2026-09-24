@@ -227,6 +227,16 @@ export function evaluatePolicy(ctx: PolicyContext): PolicyDecision {
           escalationChain(ctx),
         );
       }
+      // The mailbox owner pressing Send on a routine reply is the explicit
+      // human approval. It still becomes an approval record with an id, so
+      // the connector write is authorized the same way as every other send.
+      if (ctx.actorId === ctx.resourceOwnerId && ctx.risk === "low") {
+        return decide(
+          "require_approval",
+          "Nothing is sent without your confirmation. Pressing Send is that confirmation, and it is recorded.",
+          [{ kind: "executive", reviewerDomain: null, label: "You confirm before sending" }],
+        );
+      }
       return decide(
         "require_approval",
         "No message is sent without an explicit human approval.",

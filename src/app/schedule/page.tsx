@@ -2,16 +2,22 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { CalendarEvent, MeetingProposal } from "@/core/contracts";
+import Link from "next/link";
 import { Card, OutcomeBadge, Reason } from "@/components/primitives";
+import { useSession } from "@/components/session";
+import { Icon } from "@/components/icons";
+import { changeProjectLink } from "@/components/projectLinks";
 
 const REQUESTERS = [
-  { id: "p_coo", label: "Ray Alvarez — COO (direct report)" },
-  { id: "p_dir_ops", label: "Casey Wu — Director, Store Ops (3 levels down)" },
-  { id: "p_mgr_analytics", label: "Ellie Novak — Manager, Analytics (4 levels down)" },
-  { id: "p_ext_banker", label: "Howard Teague — external" },
+  { id: "p_coo", label: "Ray Alvarez, COO (direct report)" },
+  { id: "p_dir_ops", label: "Casey Wu, Director, Store Ops (3 levels down)" },
+  { id: "p_mgr_analytics", label: "Ellie Novak, Manager, Analytics (4 levels down)" },
+  { id: "p_ext_banker", label: "Howard Teague (external)" },
 ];
 
 export default function SchedulePage() {
+  const actorId = useSession()?.actor.id ?? "p_ceo";
+  const [projects, setProjects] = useState<{ id: string; name: string; eventIds: string[] }[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [agendaLoading, setAgendaLoading] = useState(true);
   const [agendaError, setAgendaError] = useState<string | null>(null);
@@ -47,7 +53,15 @@ export default function SchedulePage() {
     }
   }, []);
 
-  useEffect(() => { void loadAgenda(); }, [loadAgenda]);
+  useEffect(() => {
+    void loadAgenda();
+    fetch("/api/projects").then((response) => response.ok ? response.json() : null)
+      .then((data) => setProjects(data?.projects ?? [])).catch(() => setProjects([]));
+  }, [loadAgenda]);
+
+  async function fileEvent(eventId: string, projectId: string) {
+    if (await changeProjectLink(projectId, { op: "add", kind: "event", id: eventId })) setProjects((current) => current.map((project) => project.id === projectId ? { ...project, eventIds: [...project.eventIds, eventId] } : project));
+  }
 
   function beginReschedule(event: CalendarEvent) {
     setEditingEvent(event);
@@ -165,9 +179,10 @@ export default function SchedulePage() {
       <header className="page-head enter">
         <div className="schedule-heading-row">
           <div>
-            <p className="page-eyebrow">Daily work</p>
-            <h1 className="t-title mt-2">Schedule</h1>
-            <p className="muted t-body mt-2 max-w-prose">See the week, safely adjust owned events, and route new requests through the right human checkpoint.</p>
+            <p className="page-eyebrow">Time</p>
+            <h1 className="t-title mt-2">Calendar</h1>
+            <p className="muted t-body mt-2 max-w-prose">Your week, including meetings the assistant booked for you. To find a time with anyone, just ask.</p>
+            <Link href={`/?ask=${encodeURIComponent("Find 30 minutes next week with ")}`} className="btn btn-primary mt-4 inline-flex"><Icon name="spark" size={17} />Find a time</Link>
           </div>
           <div className="schedule-live-pill"><span aria-hidden="true" />Synthetic calendar · {shortTimezone(timezone)}</div>
         </div>
@@ -175,7 +190,7 @@ export default function SchedulePage() {
 
       <Card title="Your upcoming schedule" className="schedule-agenda-card enter" style={{ "--i": 1 } as React.CSSProperties}>
         <div className="schedule-card-intro">
-          <p className="muted t-caption">Event details are shown only for your own simulated calendar. Other people remain free/busy only.</p>
+          <p className="muted t-caption">Titles appear for meetings you organized or were invited to. Everyone else&apos;s calendar stays free/busy only.</p>
           <button type="button" className="schedule-refresh tap" onClick={() => { setAgendaLoading(true); void loadAgenda(); }} disabled={agendaLoading}>Refresh</button>
         </div>
         {agendaLoading ? <AgendaSkeleton /> : events.length === 0 ? (
@@ -189,9 +204,21 @@ export default function SchedulePage() {
                 <div className="agenda-copy">
                   <p className="agenda-time">{formatEventTime(event, timezone)}</p>
                   <h3>{event.subject}</h3>
-                  <p className="muted t-caption">{event.attendeeIds?.length ? `${event.attendeeIds.length} attendee${event.attendeeIds.length === 1 ? "" : "s"}` : "Focus time"} · Owned event</p>
+                  <p className="muted t-caption">{event.attendeeIds?.length ? `${event.attendeeIds.length} attendee${event.attendeeIds.length === 1 ? "" : "s"}` : "Focus time"} · {event.ownerId === actorId ? "You organized" : "Invited"}</p>
+                  {projects.length > 0 && (() => {
+                    const filed = projects.find((project) => project.eventIds.includes(event.eventId));
+                    return filed ? <span className="project-chip mt-1">{filed.name}</span> : (
+                      <label className="add-to-project mt-1 inline-block">
+                        <span className="sr-only">Add {event.subject} to a project</span>
+                        <select value="" onChange={(change) => change.target.value && void fileEvent(event.eventId, change.target.value)}>
+                          <option value="">Add to project…</option>
+                          {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+                        </select>
+                      </label>
+                    );
+                  })()}
                 </div>
-                <button type="button" className="btn agenda-move" onClick={() => beginReschedule(event)}>Move</button>
+                {event.ownerId === actorId && <button type="button" className="btn agenda-move" onClick={() => beginReschedule(event)}>Move</button>}
               </li>
             ))}
           </ol>
@@ -208,9 +235,9 @@ export default function SchedulePage() {
         {scheduleNotice && <p role="status" className="schedule-alert schedule-alert-success"><span aria-hidden="true">✓</span>{scheduleNotice}</p>}
       </Card>
 
-      <div className="schedule-section-label enter"><span>Request flow</span><p>Find policy-safe time with Maya Hollis</p></div>
+      <div className="schedule-section-label enter"><span>Requests to you</span><p>See how a request from someone in the organization is routed</p></div>
 
-      <Card title="Request time with Maya Hollis (CEO)" className="enter" style={{ "--i": 2 } as React.CSSProperties}>
+      <Card title="Try a request to Maya Hollis (CEO)" className="enter" style={{ "--i": 2 } as React.CSSProperties}>
         <div className="space-y-3">
           <p className="muted text-xs leading-relaxed">Explore how routing changes for synthetic requesters in the demo directory.</p>
           <Field label="Scenario requester">

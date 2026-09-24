@@ -196,3 +196,21 @@ export const EMAILS: EmailMessage[] = SEEDS.map(({ hoursAgo, ...rest }) => ({
 export function emailById(id: string): EmailMessage | undefined {
   return EMAILS.find((e) => e.id === id);
 }
+
+/**
+ * One-line summaries for the triage list, written ahead of time so the inbox
+ * renders instantly and identically with or without a live model. They are
+ * our description of each message, never text lifted from its body.
+ */
+export const EMAIL_SUMMARIES: Record<string, string> = {
+  e_crisis: "Stockroom fire at Store 412; two associates hospitalized and stable. Nina needs direction on a press statement today.",
+  e_approval: "Ellie asks you to approve $184K of peak-season overtime for two DCs. Jordan supports it; finance review pending.",
+  e_schedule_l4: "Casey wants 30 minutes next week to walk through West region remodel pilot results before phase two.",
+  e_schedule_direct: "Ray asks to move Thursday's 1:1 to Friday, any time before 3 PM.",
+  e_legal: "Marcus reports a wage-and-hour demand letter covering 14 California stores. Privileged; exposure range by Thursday.",
+  e_restricted: "An outside banker proposes a confidential conversation. Restricted to a named group.",
+  e_publish: "Sam shares a draft LinkedIn post for the denim circularity launch and wants it in your voice.",
+  e_promo: "Conference early-bird pricing ends Friday. Promotional.",
+  e_report: "Priya's daily comp digest: +2.8% week to date, Southwest trailing. No action required.",
+  e_inject: "A vendor demands an immediate wire to new account details, and the message tries to instruct the assistant. Treat as suspected fraud.",
+};

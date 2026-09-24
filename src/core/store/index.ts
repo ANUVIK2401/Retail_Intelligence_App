@@ -6,13 +6,16 @@ import type {
   EmailAssessment,
   MeetingProposal,
   MemoryEntry,
+  Project,
   PublicationDraft,
   Role,
+  SentReply,
   Workspace,
   WorkspaceMessage,
 } from "@/core/contracts";
 import { POLICY_RULES } from "@/core/policy/engine";
 import { SYNTHETIC_CALENDAR_EVENTS } from "@/data/calendar";
+import { SEED_PROJECTS } from "@/data/projects";
 
 export type State = {
   assessments: Map<string, EmailAssessment>;
@@ -34,6 +37,12 @@ export type State = {
     provider: "mock" | "anthropic" | "openai";
   };
   mockDrafts: Map<string, { messageId: string; body: string; sentAt?: string }>;
+  /** Inbox triage: messages set aside until a time, keyed by email id. */
+  snoozes: Map<string, { until: string; actorId: string }>;
+  /** Synthetic Sent folder. Nothing here ever left the demo. */
+  sent: Map<string, SentReply>;
+  /** Projects and their links, keyed by project id. */
+  projects: Map<string, Project>;
   mockEvents: Map<string, CalendarEvent>;
   assistantRequests: number;
   seq: number;
@@ -55,6 +64,9 @@ export function freshState(): State {
       provider: process.env.AI_PROVIDER === "anthropic" ? "anthropic" : process.env.AI_PROVIDER === "openai" ? "openai" : "mock",
     },
     mockDrafts: new Map(),
+    snoozes: new Map(),
+    sent: new Map(),
+    projects: new Map(SEED_PROJECTS.map((project) => [project.id, structuredClone(project)])),
     mockEvents: new Map(SYNTHETIC_CALENDAR_EVENTS.map((event) => [
       event.eventId,
       { ...event, attendeeIds: [...(event.attendeeIds ?? [])] },

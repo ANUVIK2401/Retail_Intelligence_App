@@ -1,6 +1,6 @@
 import type { AssistantResponse, AssistantSource, Person } from "@/core/contracts";
 import { readableMessages } from "@/core/access";
-import { MockCalendarConnector, MockMailConnector } from "@/core/connectors/mock";
+import { connectors } from "@/core/connectors/resolve";
 import { listProposals } from "@/core/store";
 import { PEOPLE } from "@/data/org";
 
@@ -24,7 +24,7 @@ export async function answerFromFacts(actor: Person, question: string, selected?
     const target = namedPerson(question, actor);
     const from = new Date();
     const to = new Date(from.getTime() + 5 * 24 * 60 * 60 * 1000);
-    const busy = (await new MockCalendarConnector().getSchedule({
+    const busy = (await connectors().calendar.getSchedule({
       personIds: [target.id], from: from.toISOString(), to: to.toISOString(),
     })).slice(0, 8);
     const blocks = busy.length ? busy.map((block) =>
@@ -70,7 +70,7 @@ export async function answerFromFacts(actor: Person, question: string, selected?
     // Start at the mailbox boundary, then apply the central access gate before
     // deriving labels or counts. A recipient in someone else's fixture is not
     // equivalent to ownership of that person's inbox.
-    const messages = readableMessages(actor, await new MockMailConnector().listMessages(actor.id)).slice(0, 6);
+    const messages = readableMessages(actor, await connectors().mail.listMessages(actor.id)).slice(0, 6);
     return {
       source: "emails",
       answer: messages.length

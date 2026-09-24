@@ -92,7 +92,7 @@ export default function InsightsPage() {
   return (
     <div className="space-y-5">
       <header className="page-head enter">
-        <p className="page-eyebrow">Intelligence</p>
+        <p className="page-eyebrow">Business signals</p>
         <h1 className="t-title mt-2">Insights</h1>
         <p className="muted t-body mt-2 max-w-prose">
           Different functions get different insights from different sources. Every claim
@@ -210,7 +210,7 @@ export default function InsightsPage() {
                 <ul className="mt-1 space-y-1">
                   {result.excluded.map((e) => (
                     <li key={e.id} className="muted text-[11px] leading-relaxed">
-                      <span className="font-medium">{e.label}</span> — {e.reason}
+                      <span className="font-medium">{e.label}</span>: {e.reason}
                     </li>
                   ))}
                 </ul>
@@ -262,7 +262,7 @@ export default function InsightsPage() {
 
       <Card title="Prototype boundary">
         <p className="muted text-[13px] leading-relaxed">
-          Retrieval is real — chunk, embed, filter by permission, rank, cite — but it runs
+          Retrieval is real (chunk, embed, filter by permission, rank, cite), but it runs
           over synthetic documents standing in for the client&apos;s approved reports, and
           the embedding is computed locally so the demo needs no network. Open-web
           ingestion waits until source licensing, reliability, confidentiality, and

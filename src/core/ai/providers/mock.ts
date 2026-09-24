@@ -147,7 +147,7 @@ function workspaceDraft(history: string): Draft {
   const topic = context.map(turn => WORKSPACE_ANGLES.find(angle => angle.match.test(turn)))
     .find(Boolean) ?? DEFAULT_ANGLE;
   return {
-    body: `Offline mock — illustrative thinking partner.\n\nAngle: ${topic.angle}\n\nRisk: ${topic.risk}\n\nNext step: ${topic.next}`,
+    body: `Offline mock: illustrative thinking partner.\n\nAngle: ${topic.angle}\n\nRisk: ${topic.risk}\n\nNext step: ${topic.next}`,
     tone: "direct, exploratory",
     caveats: ["Deterministic topic-based suggestions, not a live model assessment. No action has been taken."],
   };

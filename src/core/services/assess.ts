@@ -1,6 +1,6 @@
 import { PROMPT_VERSION } from "@/core/ai/gateway";
 import { resolveProvider } from "@/core/ai/resolve";
-import { MockMailConnector } from "@/core/connectors/mock";
+import { connectors } from "@/core/connectors/resolve";
 import {
   RISK_ORDER,
   type ApprovalRequest,
@@ -14,7 +14,7 @@ import { canReadMessage, safeAuditLabel } from "@/core/access";
 import { listApprovals, nextId, recordAudit, saveApproval, saveAssessment, store } from "@/core/store";
 import { personById } from "@/data/org";
 
-const mail = new MockMailConnector();
+const mail = connectors().mail;
 
 /** Thrown when the acting identity may not read the message at all. */
 export class AccessDeniedError extends Error {

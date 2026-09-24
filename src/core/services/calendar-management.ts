@@ -4,6 +4,7 @@ import { evaluatePolicy } from "@/core/policy/engine";
 import { nextId, recordAudit, store } from "@/core/store";
 import { BUSY_BLOCKS, PROTECTED_BLOCKS } from "@/data/calendar";
 import { personById } from "@/data/org";
+import { zonedClock } from "@/core/scheduling/availability";
 
 export class CalendarManagementError extends Error {
   readonly status: 400 | 403 | 404 | 409;
@@ -19,6 +20,17 @@ export class CalendarManagementError extends Error {
 export function listOwnedCalendarEvents(actorId: string): CalendarEvent[] {
   return [...store.mockEvents.values()]
     .filter((event) => event.ownerId === actorId)
+    .sort((a, b) => a.start.localeCompare(b.start))
+    .map(copyEvent);
+}
+
+/**
+ * Events the actor owns or was invited to. An invitee legitimately knows the
+ * title of a meeting they are in; everyone else still sees free/busy only.
+ */
+export function listVisibleCalendarEvents(actorId: string): CalendarEvent[] {
+  return [...store.mockEvents.values()]
+    .filter((event) => event.ownerId === actorId || (event.attendeeIds ?? []).includes(actorId))
     .sort((a, b) => a.start.localeCompare(b.start))
     .map(copyEvent);
 }
@@ -136,29 +148,8 @@ function insideWorkingHours(person: Person, start: string, end: string): boolean
     localEnd.minutes <= person.workingHours.endHour * 60;
 }
 
-function localTime(date: Date, timeZone: string): {
-  date: string;
-  weekday: string;
-  minutes: number;
-} {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    weekday: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-  }).formatToParts(date);
-  const value = (type: Intl.DateTimeFormatPartTypes) =>
-    parts.find((part) => part.type === type)?.value ?? "";
-  return {
-    date: `${value("year")}-${value("month")}-${value("day")}`,
-    weekday: value("weekday"),
-    minutes: Number(value("hour")) * 60 + Number(value("minute")),
-  };
-}
+/** Shared with the availability engine so both read wall-clock time the same way. */
+const localTime = zonedClock;
 
 function validateConflicts(
   eventId: string,

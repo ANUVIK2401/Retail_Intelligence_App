@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { actorFromRequest } from "@/core/session";
 import { isAdmin } from "@/core/auth/admin";
 import { MEMBER_HEADER } from "@/core/deployment/access";
+import { readFeatures } from "@/config/features";
 
 export async function GET(req: Request) {
   const actor = actorFromRequest(req);
@@ -12,9 +13,10 @@ export async function GET(req: Request) {
   // API re-checks it on every admin call and never trusts this value.
   const admin = isAdmin(req.headers.get(MEMBER_HEADER) ?? session?.user?.email ?? null);
   return NextResponse.json({
-    actor: { id: actor.id, name: actor.name, title: actor.title, roles: actor.roles },
+    actor: { id: actor.id, name: actor.name, title: actor.title, roles: actor.roles, timezone: actor.timezone },
     member: session?.user ? { name: session.user.name ?? actor.name, email: session.user.email ?? "" } :
       { name: "Local demo", email: "Synthetic session" },
     admin,
+    features: readFeatures(),
   });
 }

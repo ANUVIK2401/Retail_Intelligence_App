@@ -4,11 +4,11 @@ export default function OrgChartPage() {
   return (
     <div className="space-y-5">
       <header className="page-head enter">
-        <p className="page-eyebrow">People & governance</p>
-        <h1 className="t-title mt-2">Organization hierarchy</h1>
+        <p className="page-eyebrow">Directory</p>
+        <h1 className="t-title mt-2">People</h1>
         <p className="muted t-body mt-2 max-w-prose">
-          A clear view of the executive reporting structure in this synthetic directory.
-          Access and approval authority are granted separately.
+          Who reports to whom across the leadership team. The assistant uses this to route
+          meeting requests; access and approval authority are granted separately.
         </p>
       </header>
 

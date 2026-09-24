@@ -2,17 +2,18 @@ import { withDemoState } from "@/core/persistence";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 import { NextResponse } from "next/server";
-import { MockMailConnector } from "@/core/connectors/mock";
+import { connectors } from "@/core/connectors/resolve";
 import { RISK_ORDER, type RiskLevel } from "@/core/contracts";
 import { evaluateDeterministicRisk } from "@/core/risk/rules";
 import { canSeeApproval, readableMessages } from "@/core/access";
 import { visibleInsights } from "@/core/services/insights";
 import { actorFromRequest } from "@/core/session";
+import { triageRows } from "@/core/services/triage";
 import { getAssessment, listApprovals, listAudit } from "@/core/store";
 import { INSIGHTS } from "@/data/knowledge";
 import { RESTRICTED_ACCESS, personById } from "@/data/org";
 
-const mail = new MockMailConnector();
+const mail = connectors().mail;
 
 /**
  * Aggregated view. Reads cached assessments and stored state; it does not
@@ -69,6 +70,8 @@ async function handleGET(req: Request) {
     recentAudit: listAudit(50)
       .filter((e) => e.actorId === actor.id || actor.roles.includes("auditor"))
       .slice(0, 5),
+    // The same buckets the Inbox filters use, so the two never disagree.
+    triage: await triageCounts(actor),
     counts: {
       total: scored.length,
       unassessed: scored.filter((s) => !s.assessed).length,
@@ -77,5 +80,15 @@ async function handleGET(req: Request) {
   });
 }
 
+
+async function triageCounts(actor: ReturnType<typeof actorFromRequest>): Promise<{ needsMe: number; canWait: number; snoozed: number }> {
+  const rows = (await triageRows(actor)).filter((row) => !row.redacted);
+  const open = rows.filter((row) => !row.redacted && !row.snoozedUntil && !row.replied);
+  return {
+    needsMe: open.filter((row) => !row.redacted && row.bucket === "needs_me").length,
+    canWait: open.filter((row) => !row.redacted && row.bucket === "can_wait").length,
+    snoozed: rows.filter((row) => !row.redacted && row.snoozedUntil).length,
+  };
+}
 
 export const GET = withDemoState(handleGET);

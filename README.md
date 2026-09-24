@@ -1,14 +1,29 @@
-# Executive Command Center
+# PacSun Executive Assistant
 
-An executive decision workspace for a PacSun leadership walkthrough. The
-prototype brings communication, scheduling, approvals, and grounded insights
-into one governed view.
+A calm, chat-first executive assistant prototype for a PacSun leadership
+walkthrough. Ask in plain words, by text or voice: find 30 minutes with two
+colleagues next week, see which emails need you, check tomorrow's calendar, or
+catch up on a project. The assistant proposes; you confirm.
 
 > The AI analyzes and proposes. Authentication, deterministic policy, and human
-> approval control every consequential action.
+> confirmation control every consequential action.
 
 Everything here runs on synthetic data. No real executive, customer, or company
 data appears anywhere in this repository.
+
+What is in it:
+
+- **Chat in the center** (GPT-style): left navigation, the conversation in the
+  middle, and a collapsible **Today** panel with what needs attention.
+- **Multi-person scheduling** from a sentence: every attendee's free/busy is
+  checked in their own timezone, 3 to 4 options come back, and one tap opens a
+  confirmation card. Follow-ups work: "make it 45 and add Nina".
+- **Voice input** through the browser's own speech recognition.
+- **Inbox triage** built for a phone: reply fully, quick reply, or later
+  (swipe right or left). Nothing is sent externally.
+- **Projects** that group email, meetings, people, and notes by initiative, with
+  one-tap suggestions and a group-by-project inbox.
+- **Approvals** as a separate queue only when `FEATURE_APPROVALS=true`.
 
 ## Run it
 
@@ -73,11 +88,33 @@ The local build and test run do not substitute for a remote OAuth and
 Postgres-backed check. The Vercel project must be connected to the repository
 containing these changes before its deployment reflects them.
 
+## Feature flags and data source
+
+| Variable | Default | Effect |
+|---|---|---|
+| `FEATURE_APPROVALS` | `false` | Shows the Approvals queue, its nav item, and the Today panel's approval tiles. Off: `/approvals` redirects to chat; confirmation stays inline (Book, Send); policy and audit are unchanged. |
+| `FEATURE_VOICE_REPLIES` | `false` | Offers "Read replies aloud" in the composer. |
+| `DATA_SOURCE` | `synthetic` | `graph` selects the Microsoft Graph adapter, a stub that fails loudly. See [docs/architecture.md](docs/architecture.md). |
+
+## Database
+
+The running app stores each member's demo session in Postgres
+(`ecc_demo_sessions`). The target relational schema, with invariants enforced
+by constraints and row-level security, is in `db/migrations`:
+
+```bash
+DATABASE_URL=postgres://... npm run db:migrate   # idempotent
+DATABASE_URL=postgres://... npm run db:seed      # loads the synthetic fixtures
+```
+
 ## Verify it
 
 ```bash
 npm run build
 npm test
+AUTH_MODE=demo npm run dev &
+npm run e2e                                  # browser demo script, incl. voice
+node scripts/verify-responsive.mjs           # 9 widths x 12 pages
 AUTH_MODE=demo npm run dev &
 PORT=3000 bash scripts/verify-demo.sh
 ```
@@ -86,10 +123,15 @@ The suite covers the four demo scenarios plus six adversarial cases: prompt
 injection, a compromised model, wrong-identity approval, restricted access,
 approving a blocked matter, and disabling an invariant rule.
 
-## The demo, in four scenes
+## The demo
 
-Presenter walkthrough: **[docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md)**.
+Click-by-click script, known limitations, and questions for the reviewer:
+**[DEMO.md](DEMO.md)**. The earlier governance walkthrough is in
+[docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md).
 
+0. **Scheduling from a sentence.** "Find 30 minutes next week with Ray and
+   Priya" returns 3 to 4 times that work across Los Angeles and New York. Pick
+   one, edit the title, Book. Then "Actually make it 45 and add Nina".
 1. **Routine approval.** Assess the DC throughput email. Medium risk, with the
    reason shown. Clear the CEO step, see that the chain is not finished, then
    sign in as the mapped CFO to clear finance review. A simulated mailbox draft
@@ -113,7 +155,10 @@ Scene 4 is the argument. Everything else is the product.
 
 | | |
 |---|---|
-| `CLAUDE.md` | Build constitution: invariants, dependency direction, conventions |
+| `CLAUDE.md` | Build constitution: invariants, product direction, architecture and nav maps |
+| `docs/architecture.md` | As-is and to-be architecture, Microsoft Graph plan, privacy, failure modes |
+| `src/core/scheduling/` | Availability engine and natural-language parser (pure) |
+| `src/core/services/chat.ts` | What the chat does with a message; it never books or sends |
 | `docs/00-BUILD-PLAN.md` | Scoping decision, status, what is next, open client questions |
 | `docs/prompts/` | The prompt pack that produced this and continues it |
 | `docs/decisions/` | ADRs covering the load-bearing choices |
@@ -123,7 +168,9 @@ Scene 4 is the argument. Everything else is the product.
 
 ## Stack
 
-Next.js 16, Auth.js, TypeScript, Tailwind v4, zod. Mock connectors, with
+Next.js 16, Auth.js, TypeScript, Tailwind v4, zod. No new runtime
+dependencies were added for chat, voice, or projects (voice uses the browser's
+Web Speech API). Synthetic connectors behind `DATA_SOURCE`, with
 in-memory state in local development and Postgres-backed demo sessions on
 Vercel. ADR-0001 explains the original scope; ADR-0007 and ADR-0008 document
 deployment persistence and executive sign-in.

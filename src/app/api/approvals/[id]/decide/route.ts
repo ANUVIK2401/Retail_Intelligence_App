@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { authorizeApprovalStep, canSeeApproval } from "@/core/access";
-import { MockCalendarConnector, MockMailConnector } from "@/core/connectors/mock";
+import { connectors } from "@/core/connectors/resolve";
 import { type ApprovalRequest } from "@/core/contracts";
 import { actorFromRequest } from "@/core/session";
 import {
@@ -15,9 +15,9 @@ import {
   recordAudit,
 } from "@/core/store";
 import { RESTRICTED_ACCESS } from "@/data/org";
+import { performReplySend } from "@/core/services/triage";
 
-const mail = new MockMailConnector();
-const calendar = new MockCalendarConnector();
+const { mail, calendar } = connectors();
 
 /**
  * The approval gate.
@@ -156,6 +156,9 @@ async function handlePOST(
           promptVersion: null,
           detail: `Draft ${draft.externalRef} created in the mailbox. Not sent: sending is a separate, explicitly authorized action.`,
         });
+      } else if (updated.subjectType === "email_reply") {
+        const reply = await performReplySend(updated, actor, "full", correlationId);
+        execution = { kind: "email_reply_sent", replyId: reply.id, sentAt: reply.sentAt };
       } else if (updated.subjectType === "meeting_proposal") {
         const proposal = getProposal(updated.subjectId);
         const slotIndex = body.slotIndex!;

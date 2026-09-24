@@ -111,6 +111,49 @@ export const AssistantResponseSchema = z.object({
 export type AssistantResponse = z.infer<typeof AssistantResponseSchema>;
 
 /* ------------------------------------------------------------------ */
+/* Conversational scheduling                                           */
+/* ------------------------------------------------------------------ */
+
+export const WeekdaySchema = z.enum(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+
+/** When the executive wants to meet, as they said it, before it becomes dates. */
+export const SchedulingWindowSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("today") }),
+  z.object({ kind: z.literal("tomorrow") }),
+  z.object({ kind: z.literal("this_week") }),
+  z.object({ kind: z.literal("next_week") }),
+  z.object({ kind: z.literal("next_days"), count: z.number().int().min(1).max(20) }),
+  z.object({
+    kind: z.literal("days"),
+    days: z.array(WeekdaySchema).min(1).max(5),
+    week: z.enum(["this", "next", "nearest"]),
+  }),
+  z.object({
+    kind: z.literal("before"),
+    day: z.union([WeekdaySchema, z.literal("today"), z.literal("tomorrow")]),
+    minutes: z.number().int().min(0).max(1440),
+  }),
+]);
+export type SchedulingWindow = z.infer<typeof SchedulingWindowSchema>;
+
+/**
+ * A scheduling request in progress. The client holds it between turns so a
+ * follow-up ("make it 45 and add Nina") revises it. It is untrusted input on
+ * every turn: ids are re-resolved against the directory and policy runs again.
+ */
+export const SchedulingDraftSchema = z.object({
+  attendeeIds: z.array(z.string().min(1).max(40)).min(1).max(8),
+  durationMinutes: z.number().int().min(15).max(240),
+  window: SchedulingWindowSchema,
+  title: z.string().trim().min(1).max(120).nullable(),
+  notBeforeMinutes: z.number().int().min(0).max(1440).optional(),
+  notAfterMinutes: z.number().int().min(0).max(1440).optional(),
+  bufferMinutes: z.number().int().min(0).max(60).optional(),
+  projectId: z.string().max(40).optional(),
+}).strict();
+export type SchedulingDraft = z.infer<typeof SchedulingDraftSchema>;
+
+/* ------------------------------------------------------------------ */
 /* Risk                                                                */
 /* ------------------------------------------------------------------ */
 
@@ -311,6 +354,16 @@ export const MeetingRequestSchema = z
     sensitivity: z.enum(["normal", "confidential"]).default("normal"),
     earliest: z.string().datetime({ offset: true }),
     latest: z.string().datetime({ offset: true }),
+    /** Optional limits from a natural-language request, read in the requester's timezone. */
+    constraints: z
+      .object({
+        notBeforeMinutes: z.number().int().min(0).max(1440).optional(),
+        notAfterMinutes: z.number().int().min(0).max(1440).optional(),
+        days: z.array(z.enum(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"])).max(7).optional(),
+        bufferMinutes: z.number().int().min(0).max(60).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
   .superRefine((request, context) => {
@@ -383,7 +436,7 @@ export type ApprovalStatus = z.infer<typeof ApprovalStatusSchema>;
 export const ApprovalRequestSchema = z.object({
   id: z.string(),
   action: ActionSchema,
-  subjectType: z.enum(["email_draft", "meeting_proposal", "publication"]),
+  subjectType: z.enum(["email_draft", "email_reply", "meeting_proposal", "publication"]),
   subjectId: z.string(),
   title: z.string(),
   /** What will actually happen if this is approved. */
@@ -522,3 +575,150 @@ export const WorkspaceSchema = z.object({
   updatedAt: z.string(),
 });
 export type Workspace = z.infer<typeof WorkspaceSchema>;
+
+/* ------------------------------------------------------------------ */
+/* Inbox triage                                                        */
+/* ------------------------------------------------------------------ */
+
+export const SnoozePresetSchema = z.enum(["tonight", "tomorrow_morning", "next_week"]);
+export type SnoozePreset = z.infer<typeof SnoozePresetSchema>;
+
+/** A reply in the synthetic Sent folder. It never leaves the demo. */
+export const SentReplySchema = z.object({
+  id: z.string(),
+  emailId: z.string(),
+  actorId: z.string(),
+  body: z.string().min(1).max(4000),
+  kind: z.enum(["full", "quick"]),
+  approvalId: z.string().min(1),
+  sentAt: z.string(),
+});
+export type SentReply = z.infer<typeof SentReplySchema>;
+
+export const TriageActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("snooze"), preset: SnoozePresetSchema }).strict(),
+  z.object({ action: z.literal("unsnooze") }).strict(),
+  z.object({ action: z.literal("send"), kind: z.enum(["full", "quick"]), body: z.string().trim().min(2).max(4000) }).strict(),
+]);
+export type TriageAction = z.infer<typeof TriageActionSchema>;
+
+/* ------------------------------------------------------------------ */
+/* Projects                                                            */
+/* ------------------------------------------------------------------ */
+
+export const ProjectColorSchema = z.enum(["teal", "indigo", "amber", "rose", "slate", "green"]);
+
+/**
+ * A way to organize work by initiative instead of by arrival time. The
+ * arrays are the link tables (project_people, project_emails, ...); the
+ * database schema in db/migrations keeps them as separate tables.
+ */
+export const ProjectSchema = z.object({
+  id: z.string(),
+  ownerId: z.string(),
+  name: z.string().trim().min(2).max(80),
+  description: z.string().trim().max(400),
+  color: ProjectColorSchema,
+  type: z.enum(["initiative", "recurring", "custom"]),
+  status: z.enum(["active", "paused", "done"]),
+  createdAt: z.string(),
+  memberIds: z.array(z.string()),
+  emailIds: z.array(z.string()),
+  eventIds: z.array(z.string()),
+  /** Workspaces used as this project's notes; their "Project context" memory is the project's memory. */
+  workspaceIds: z.array(z.string()),
+  /** Words that suggest a new email belongs here. Suggestions are never applied silently. */
+  keywords: z.array(z.string()),
+});
+export type Project = z.infer<typeof ProjectSchema>;
+
+export const CreateProjectSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  description: z.string().trim().max(400).default(""),
+  type: z.enum(["initiative", "recurring", "custom"]).default("custom"),
+  color: ProjectColorSchema.default("teal"),
+  memberIds: z.array(z.string().max(40)).max(12).default([]),
+}).strict();
+
+export const ProjectLinkSchema = z.object({
+  op: z.enum(["add", "remove"]),
+  kind: z.enum(["email", "event", "person", "workspace"]),
+  id: z.string().min(1).max(60),
+}).strict();
+export type ProjectLink = z.infer<typeof ProjectLinkSchema>;
+
+/* ------------------------------------------------------------------ */
+/* Chat message parts                                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * An assistant turn is a list of typed parts, not a string, so a reply can
+ * carry a time picker or an email card inline. Parts describe; they never
+ * authorize. Booking and sending go through their own routes and policy.
+ */
+const ChatPersonSchema = z.object({ id: z.string(), name: z.string(), title: z.string(), timezone: z.string() });
+const ChatPromptSchema = z.object({ label: z.string().min(1).max(80), prompt: z.string().min(1).max(300) });
+
+export const ChatPartSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("text"), text: z.string().min(1) }),
+  z.object({ type: z.literal("items"), items: z.array(AssistantItemSchema) }),
+  z.object({
+    type: z.literal("slots"),
+    proposalId: z.string(),
+    /** Set when policy needs a confirmation beyond the requester's own. */
+    approvalId: z.string().nullable(),
+    title: z.string(),
+    durationMinutes: z.number().int(),
+    timezone: z.string(),
+    windowLabel: z.string(),
+    attendees: z.array(ChatPersonSchema),
+    slots: z.array(z.object({ index: z.number().int(), start: z.string(), end: z.string(), rationale: z.string() })),
+    /** How many to show before "Show more times". */
+    initiallyVisible: z.number().int(),
+    policyNote: z.string().nullable(),
+    projectId: z.string().nullable(),
+  }),
+  z.object({
+    type: z.literal("no_slots"),
+    message: z.string(),
+    alternatives: z.array(ChatPromptSchema.extend({ detail: z.string().optional() })),
+  }),
+  z.object({ type: z.literal("clarify"), question: z.string(), options: z.array(ChatPromptSchema) }),
+  z.object({ type: z.literal("actions"), actions: z.array(ChatPromptSchema) }),
+  z.object({
+    type: z.literal("email_card"),
+    email: z.object({
+      id: z.string(), subject: z.string(), from: z.string(), fromTitle: z.string(), summary: z.string(),
+      risk: RiskLevelSchema, receivedAt: z.string(), external: z.boolean(), injectionSuspected: z.boolean(),
+      replyable: z.boolean(),
+      quickReplies: z.array(z.object({ id: z.string(), label: z.string(), body: z.string() })),
+      fullDraft: z.string().nullable(),
+    }),
+  }),
+  z.object({
+    type: z.literal("event_confirmation"),
+    eventId: z.string(), title: z.string(), start: z.string(), end: z.string(), timezone: z.string(),
+    attendees: z.array(ChatPersonSchema.pick({ id: true, name: true })),
+    note: z.string(),
+  }),
+  z.object({
+    type: z.literal("project_card"),
+    project: z.object({
+      id: z.string(), name: z.string(), description: z.string(), color: ProjectColorSchema, status: z.string(),
+      counts: z.object({ emails: z.number(), meetings: z.number(), people: z.number(), notes: z.number() }),
+    }),
+    openItems: z.array(z.string()),
+  }),
+  z.object({ type: z.literal("link"), href: z.string().startsWith("/"), label: z.string() }),
+]);
+export type ChatPart = z.infer<typeof ChatPartSchema>;
+
+export const ChatContextSchema = z.object({
+  scheduling: SchedulingDraftSchema.optional(),
+}).strict();
+export type ChatContext = z.infer<typeof ChatContextSchema>;
+
+export const ChatRequestSchema = z.object({
+  question: z.string().trim().min(2).max(500),
+  context: ChatContextSchema.nullable().optional(),
+}).strict();

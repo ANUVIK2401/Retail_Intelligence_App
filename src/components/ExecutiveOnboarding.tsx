@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { PRODUCT } from "@/config/product";
 
 type Executive = {
   id: string;
@@ -215,7 +216,7 @@ export function ExecutiveOnboarding({ actor, openRequest = 0 }: ExecutiveOnboard
                 </button>
               ) : (
                 <button type="button" className="btn btn-primary" onClick={complete}>
-                  Enter command center
+                  Start with the {PRODUCT.shortName}
                 </button>
               )}
             </div>
@@ -240,12 +241,12 @@ function WelcomeStep({ actor, headingRef }: { actor: Executive; headingRef: Reac
         Welcome, {firstName(actor.name)}.
       </h2>
       <p id="executive-tour-description" className="mt-3 max-w-xl text-base leading-7 muted">
-        Your command center brings the decisions, schedule changes, approvals, and signals tied to your role as {actor.title} into one calm daily view.
+        Your assistant finds time with your team, keeps your inbox moving, and prepares what you need as {actor.title}. Ask in plain words, by text or voice.
       </p>
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <ValueCard icon="01" title="See the day" text="Start with priorities and time-sensitive changes." />
-        <ValueCard icon="02" title="Decide faster" text="Review context before approving consequential work." />
-        <ValueCard icon="03" title="Stay aligned" text="Keep delegated work visible and accountable." />
+        <ValueCard icon="01" title="Ask anything" text="Type or speak a request, like finding 30 minutes with two colleagues." />
+        <ValueCard icon="02" title="Pick an option" text="Choose from a few clear times, replies, or drafts." />
+        <ValueCard icon="03" title="Confirm it" text="Nothing is booked or sent until you say so." />
       </div>
     </div>
   );
@@ -265,8 +266,8 @@ function ControlStep({ headingRef }: { headingRef: React.RefObject<HTMLHeadingEl
       </p>
       <div className="mt-6 space-y-3">
         <ControlRow number="1" title="Review before action" text="Suggestions and drafts are presented for review instead of being silently applied." />
-        <ControlRow number="2" title="Confirm high-impact work" text="Approvals keep sensitive or consequential decisions in human hands." />
-        <ControlRow number="3" title="Keep a trace" text="Controls and audit history make activity easier to inspect and govern." />
+        <ControlRow number="2" title="Confirm what matters" text="Booking a meeting or sending a reply always waits for your confirmation. Sensitive matters go to the right person." />
+        <ControlRow number="3" title="Keep a record" text="Everything the assistant does is written to a history you can review under Settings." />
       </div>
       <p className="mt-4 rounded-xl border px-4 py-3 text-sm leading-6" style={{ borderColor: "var(--border)", background: "var(--sunken)" }}>
         This is a demonstration environment with synthetic records. Never enter confidential or personally sensitive information.
@@ -283,12 +284,12 @@ function TourStep({ actor, headingRef, onNavigate }: { actor: Executive; heading
         Begin where the day needs you.
       </h2>
       <p id="executive-tour-description" className="mt-3 max-w-xl text-base leading-7 muted">
-        These three views are the fastest way to understand what needs attention. You can return to this tour from your profile card at any time.
+        Start a conversation, or open your inbox or calendar. You can return to this tour from your profile card at any time.
       </p>
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        <TourLink href="/" eyebrow="Daily brief" title="Overview" text="Scan priorities and the most important changes first." onClick={onNavigate} />
-        <TourLink href="/schedule" eyebrow="Time" title="Schedule" text="Check commitments and review proposed calendar changes." onClick={onNavigate} />
-        <TourLink href="/approvals" eyebrow="Decisions" title="Approvals" text="Resolve work that is waiting for executive judgment." onClick={onNavigate} />
+        <TourLink href="/" eyebrow="Start here" title="Chat" text="Try: find 30 minutes next week with Ray and Priya." onClick={onNavigate} />
+        <TourLink href="/inbox" eyebrow="Email" title="Inbox" text="Reply fully, reply quickly, or save it for later." onClick={onNavigate} />
+        <TourLink href="/schedule" eyebrow="Time" title="Calendar" text="See your week and anything the assistant booked." onClick={onNavigate} />
       </div>
     </div>
   );

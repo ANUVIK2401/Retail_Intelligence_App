@@ -80,7 +80,7 @@ export default function ControlsPage() {
   return (
     <div className="space-y-5">
       <header className="page-head enter">
-        <p className="page-eyebrow">Governance</p>
+        <p className="page-eyebrow">Settings</p>
         <h1 className="t-title mt-2">Controls</h1>
         <p className="muted t-body mt-2 max-w-prose">
           What the company can switch on and off, and what it cannot. Policy version{" "}
@@ -135,14 +135,15 @@ export default function ControlsPage() {
           <ul className="space-y-3">
             {rules.map((rule) => (
               <li key={rule.id} className="flex items-start gap-3">
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  checked={rule.enabled}
-                  disabled={!rule.editable || pending}
-                  onChange={(e) => void post({ ruleId: rule.id, enabled: e.target.checked })}
-                  aria-label={rule.description}
-                />
+                <label className="rule-toggle">
+                  <input
+                    type="checkbox"
+                    checked={rule.enabled}
+                    disabled={!rule.editable || pending}
+                    onChange={(e) => void post({ ruleId: rule.id, enabled: e.target.checked })}
+                    aria-label={rule.description}
+                  />
+                </label>
                 <div className="min-w-0">
                   <p className="text-[13px] leading-relaxed">{rule.description}</p>
                   <p className="muted mt-0.5 font-mono text-[11px]">

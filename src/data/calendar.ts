@@ -1,19 +1,11 @@
 import type { BusyBlock, CalendarEvent } from "@/core/contracts";
+import type { FocusBlock, Weekday } from "@/core/scheduling/availability";
+import { PEOPLE, personById } from "@/data/org";
 
 /**
  * Synthetic free/busy. Deliberately contains no meeting subjects: the mock
  * connector cannot leak a title because no title exists in the fixture.
  */
-
-const PERSON_TIMEZONES: Record<string, string> = {
-  p_ceo: "America/Los_Angeles",
-  p_ea: "America/Los_Angeles",
-  p_coo: "America/Los_Angeles",
-  p_dir_ops: "America/Los_Angeles",
-  p_vp_stores: "America/Los_Angeles",
-  p_cfo: "America/New_York",
-  p_vp_logistics: "America/Chicago",
-};
 
 function slot(
   personId: string,
@@ -22,13 +14,14 @@ function slot(
   endHour: number,
   status: BusyBlock["status"] = "busy",
 ): BusyBlock {
-  const timezone = PERSON_TIMEZONES[personId] ?? "America/Los_Angeles";
+  const timezone = personById(personId)?.timezone ?? "America/Los_Angeles";
   const start = zonedDate(dayOffset, startHour, timezone);
   const end = zonedDate(dayOffset, endHour, timezone);
   return { personId, start: start.toISOString(), end: end.toISOString(), status };
 }
 
-export const BUSY_BLOCKS: BusyBlock[] = [
+/** Hand-placed commitments for the next four business days. */
+const THIS_WEEK: BusyBlock[] = [
   // CEO — heavily booked, with a protected strategy block each morning.
   slot("p_ceo", 1, 8, 9, "out_of_office"),
   slot("p_ceo", 1, 9, 11),
@@ -69,6 +62,66 @@ export const BUSY_BLOCKS: BusyBlock[] = [
   slot("p_vp_stores", 1, 8, 16),
   slot("p_vp_logistics", 2, 8, 10),
 ];
+
+type Recurring = [Weekday[], number, number, BusyBlock["status"]?];
+
+/**
+ * A recurring week for every internal person, in their own local hours, so
+ * multi-person requests ("next week with Ray and Priya") meet a realistic
+ * calendar rather than an empty one. Days with hand-placed commitments above
+ * keep those instead.
+ */
+const RECURRING_WEEK: Record<string, Recurring[]> = {
+  p_ceo: [[["Mon"], 9, 10], [["Mon"], 13, 14], [["Tue"], 10, 12], [["Tue"], 15, 16], [["Wed"], 9, 10], [["Wed"], 14, 15, "tentative"], [["Thu"], 11, 12], [["Thu"], 16, 17], [["Fri"], 9, 11]],
+  p_ea: [[["Mon", "Wed", "Fri"], 7, 8], [["Tue", "Thu"], 12, 13]],
+  p_coo: [[["Mon"], 7, 9], [["Tue"], 13, 15], [["Wed"], 10, 11], [["Thu"], 8, 10], [["Fri"], 14, 16]],
+  p_cfo: [[["Mon"], 12, 13], [["Tue"], 9, 11], [["Wed"], 15, 17], [["Thu"], 13, 14], [["Fri"], 10, 12]],
+  p_cdio: [[["Mon", "Thu"], 9, 11], [["Wed"], 13, 15]],
+  p_cmo: [[["Tue"], 9, 12], [["Thu"], 14, 16], [["Fri"], 10, 11]],
+  p_gc: [[["Mon"], 10, 12], [["Wed"], 9, 10], [["Fri"], 13, 15]],
+  p_vp_stores: [[["Mon"], 8, 10], [["Tue"], 11, 12], [["Wed"], 12, 14], [["Thu"], 9, 10], [["Fri"], 8, 12, "out_of_office"]],
+  p_vp_logistics: [[["Mon", "Wed"], 8, 9], [["Tue"], 14, 16], [["Thu"], 10, 12]],
+  p_vp_brand: [[["Mon"], 14, 15], [["Wed"], 10, 12], [["Fri"], 9, 10]],
+  p_dir_ops: [[["Mon"], 11, 12], [["Wed"], 15, 16], [["Thu"], 13, 14, "tentative"]],
+  p_mgr_analytics: [[["Tue", "Thu"], 9, 10], [["Wed"], 14, 15]],
+  p_auditor: [[["Mon"], 13, 15], [["Thu"], 9, 11]],
+};
+
+/** Business days the fixture covers, enough for "next week" asked on a Friday. */
+const HORIZON_BUSINESS_DAYS = 15;
+
+function recurringBlocks(): BusyBlock[] {
+  const placed = new Set(THIS_WEEK.map((block) => `${block.personId}:${block.start.slice(0, 10)}`));
+  const blocks: BusyBlock[] = [];
+  for (const [personId, pattern] of Object.entries(RECURRING_WEEK)) {
+    const timezone = personById(personId)?.timezone ?? "America/Los_Angeles";
+    for (let offset = 1; offset <= HORIZON_BUSINESS_DAYS; offset += 1) {
+      const weekday = new Intl.DateTimeFormat("en-US", { timeZone: timezone, weekday: "short" })
+        .format(zonedDate(offset, 12, timezone)) as Weekday;
+      const day = zonedDate(offset, 12, timezone).toISOString().slice(0, 10);
+      if (placed.has(`${personId}:${day}`)) continue;
+      for (const [days, startHour, endHour, status] of pattern) {
+        if (days.includes(weekday)) blocks.push(slot(personId, offset, startHour, endHour, status ?? "busy"));
+      }
+    }
+  }
+  return blocks;
+}
+
+export const BUSY_BLOCKS: BusyBlock[] = [...THIS_WEEK, ...recurringBlocks()];
+
+/**
+ * Focus time. Unlike protected blocks it can be booked over, but slots that
+ * avoid it rank higher.
+ */
+export const FOCUS_BLOCKS: Record<string, FocusBlock[]> = {
+  p_ceo: [{ weekdays: ["Fri"], startHour: 13, endHour: 15, label: "Focus time" }],
+  p_coo: [{ weekdays: ["Tue", "Thu"], startHour: 15, endHour: 17, label: "Focus time" }],
+  p_cfo: [{ weekdays: ["Mon", "Wed"], startHour: 16, endHour: 18, label: "Focus time" }],
+};
+
+/** Every person the fixture knows, for tests that check coverage. */
+export const CALENDAR_PEOPLE = PEOPLE.filter((person) => person.function !== "external").map((person) => person.id);
 
 /** Protected blocks the assistant may never book over, by person. */
 export const PROTECTED_BLOCKS: Record<string, { startHour: number; endHour: number; label: string }[]> = {
@@ -137,4 +190,5 @@ export const SYNTHETIC_CALENDAR_EVENTS: CalendarEvent[] = [
   calendarEvent("cal_ceo_store", "p_ceo", 2, 15, 45, "America/Los_Angeles", "Store performance briefing", ["p_vp_stores"]),
   calendarEvent("cal_ceo_focus", "p_ceo", 3, 10, 60, "America/Los_Angeles", "Executive focus block"),
   calendarEvent("cal_cfo_forecast", "p_cfo", 2, 12, 60, "America/New_York", "Quarterly forecast review", ["p_ceo"]),
+  calendarEvent("cal_ceo_denim", "p_ceo", 4, 13, 30, "America/Los_Angeles", "Denim launch messaging review", ["p_vp_brand", "p_cmo"]),
 ];
